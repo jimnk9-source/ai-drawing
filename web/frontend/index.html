@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,7 +33,7 @@
             padding: 40px;
             background: var(--container-bg);
             border-radius: 24px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
         }
 
         h1 {
@@ -54,7 +55,25 @@
             cursor: pointer;
             transition: all 0.3s ease;
             margin-bottom: 30px;
-            background-color: #fafafa;
+            background-color: #ffffff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .upload-area img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .upload-area.has-image .upload-icon,
+        .upload-area.has-image .upload-text {
+            display: none;
+        }
+
+        .upload-area.has-image img {
+            display: block;
         }
 
         .upload-area:hover {
@@ -116,27 +135,48 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="container">
-        <h1>Vico Drawing Board</h1>
-        
+        <h1>Ai Drawing</h1>
+
         <label for="file-input" class="upload-area" id="drop-area">
+
             <div class="upload-icon">🖼️</div>
             <div class="upload-text">이미지를 드래그하거나 클릭하여 업로드하세요</div>
+            <img id="preview-image" src="#" alt="Preview">
             <input type="file" id="file-input" accept="image/*">
         </label>
 
         <div class="button-group">
-            <button class="btn-clear" onclick="clearImage()">최소화 (초기화)</button>
-            <button class="btn-upload" onclick="startUpload()">업로드 및 분석</button>
+            <button class="btn-clear" onclick="clearImage()">취소</button>
+            <button class="btn-upload" onclick="startUpload()">업로드</button>
         </div>
     </div>
 
     <script>
+        const fileInput = document.getElementById('file-input');
+        const previewImage = document.getElementById('preview-image');
+        const dropArea = document.getElementById('drop-area');
+
+        // 파일 선택 시 이벤트 처리
+        fileInput.addEventListener('change', function () {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    previewImage.src = e.target.result;
+                    dropArea.classList.add('has-image');
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
         function clearImage() {
-            document.getElementById('file-input').value = "";
-            alert("이미지가 초기화되었습니다.");
+            fileInput.value = "";
+            previewImage.src = "#";
+            dropArea.classList.remove('has-image');
         }
 
         function startUpload() {
@@ -149,4 +189,5 @@
         }
     </script>
 </body>
+
 </html>
