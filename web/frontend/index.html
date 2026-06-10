@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vico - Ai Drawing Upload</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --container-bg: #ffffff;
+            --primary-color: #4a90e2;
+            --secondary-color: #6c757d;
+            --border-color: #dee2e6;
+            --text-color: #212529;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            padding: 40px;
+            background: var(--container-bg);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+        }
+
+        .upload-area {
+            width: 100%;
+            height: 350px;
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+            background-color: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: #f0f7ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            color: var(--secondary-color);
+        }
+
+        .upload-text {
+            color: var(--secondary-color);
+            font-size: 0.95rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 28px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-clear {
+            background-color: #e9ecef;
+            color: var(--secondary-color);
+        }
+
+        .btn-clear:hover {
+            background-color: #dee2e6;
+        }
+
+        .btn-upload {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-upload:hover {
+            background-color: #357abd;
+        }
+
+        #file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Vico Drawing Board</h1>
+        
+        <label for="file-input" class="upload-area" id="drop-area">
+            <div class="upload-icon">🖼️</div>
+            <div class="upload-text">이미지를 드래그하거나 클릭하여 업로드하세요</div>
+            <input type="file" id="file-input" accept="image/*">
+        </label>
+
+        <div class="button-group">
+            <button class="btn-clear" onclick="clearImage()">최소화 (초기화)</button>
+            <button class="btn-upload" onclick="startUpload()">업로드 및 분석</button>
+        </div>
+    </div>
+
+    <script>
+        function clearImage() {
+            document.getElementById('file-input').value = "";
+            alert("이미지가 초기화되었습니다.");
+        }
+
+        function startUpload() {
+            const fileInput = document.getElementById('file-input');
+            if (fileInput.files.length > 0) {
+                alert(fileInput.files[0].name + " 파일을 분석하기 위해 서버로 전송합니다.");
+            } else {
+                alert("먼저 이미지를 선택해주세요.");
+            }
+        }
+    </script>
+</body>
+</html>
