@@ -406,6 +406,22 @@
             formData.append('file', imageBlob, 'drawing.jpg');
             formData.append('is_drawing', isDrawing);
 
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            
+            // 프로그레스 바 초기화 및 표시
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            // 가짜 프로그레스 애니메이션 (90%까지 서서히 증가)
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += (90 - progress) * 0.1;
+                    progressBar.style.width = progress + '%';
+                }
+            }, 200);
+
             try {
                 const response = await fetch('/api/process-image', {
                     method: 'POST',
@@ -413,6 +429,15 @@
                 });
                 const data = await response.json();
                 
+                // 완료 시 100%로 채우기
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    progressBar.style.width = '0%';
+                }, 500);
+
                 if (data.error) throw new Error(data.error);
                 if (!data.contours || data.contours.length === 0) {
                     alert("추출된 선이 없습니다. 더 명확하게 그려주세요.");
@@ -423,6 +448,8 @@
                 simData = data;
                 startSimulation(data);
             } catch (err) {
+                clearInterval(progressInterval);
+                progressContainer.style.display = 'none';
                 console.error(err);
                 alert("처리 중 오류가 발생했습니다: " + err.message);
                 setMode('idle');

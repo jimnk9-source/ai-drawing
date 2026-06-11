@@ -2,66 +2,26 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
-import google.generativeai as genai
-import uvicorn
 import os
 import cv2
 import numpy as np
 import base64
-import io
+import uvicorn
 
 app = FastAPI()
 
-# 1. 경로 및 환경변수 설정
+# 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-load_dotenv()
-
-# 키 로딩
-api_key = os.getenv("GOOGLE_API_KEY")
-if api_key:
-    print("✅ API 키 로드 성공")
-    genai.configure(api_key=api_key)
-else:
-    print("🚨 [에러] GOOGLE_API_KEY를 찾을 수 없습니다!")
-
-# 프론트엔드 파일 경로 설정
+# 로컬 실행 시와 Vercel 실행 시의 경로 차이를 대응
 FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
+if not os.path.exists(FRONTEND_DIR):
+    FRONTEND_DIR = os.path.join(BASE_DIR, "../../web/frontend")
+
+load_dotenv()
 
 @app.get("/")
 async def read_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
-
-# 스케치 효과 함수 (고품질 볼펜 스케치 느낌)
-def sketch_effect(img):
-    # 1. 그레이스케일 변환
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # 2. 볼펜 느낌을 위한 엣지 추출
-    edges = cv2.Canny(gray, 30, 100)
-    
-    # 3. 펜 선 느낌을 위해 반전된 가우시안 블러를 이용한 디테일 추출
-    inv = cv2.bitwise_not(gray)
-    blur = cv2.GaussianBlur(inv, (21, 21), 0)
-    pencil_sketch = cv2.divide(gray, cv2.bitwise_not(blur), scale=256.0)
-    
-    # 4. 결과 합성 (엣지 강조)
-    # 스케치 위에 엣지를 조금 더 진하게 입힙니다.
-    result = cv2.bitwise_and(pencil_sketch, pencil_sketch, mask=cv2.bitwise_not(edges))
-    
-    return cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
-
-# G-Code 생성 함수
-def generate_gcode(contours):
-    gcode = ["G21 ; Set units to mm", "G90 ; Absolute positioning", "M3 S30 ; Pen Up"]
-    for path in contours:
-        # 펜 다운 (그리기 시작)
-        gcode.append(f"G0 X{path[0]['x']} Y{path[0]['y']}")
-        gcode.append("M3 S10 ; Pen Down")
-        for p in path:
-            gcode.append(f"G1 X{p['x']} Y{p['y']}")
-        # 펜 업 (그리기 끝)
-        gcode.append("M3 S30 ; Pen Up")
-    return "\n".join(gcode)
 
 @app.post("/api/process-image")
 async def process_image(file: UploadFile = File(...), is_drawing: str = Form("false")):
@@ -79,7 +39,6 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         gray_clahe = clahe.apply(gray)
         
-        # 이미지 처리 (Opencv)
         blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
         edged = cv2.Canny(blurred, 50, 150) 
         thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
@@ -89,7 +48,6 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
         
         raw_contours = []
         
-        # 빗금(해칭) 로직: 직접 그리기가 아닌 경우에만 실행
         if not is_drawing_bool:
             _, black_mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)
             black_cnts, _ = cv2.findContours(black_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -112,7 +70,6 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
         for cnt in contours:
             length = cv2.arcLength(cnt, True)
             area = cv2.contourArea(cnt)
-            # 형태를 가진 작은 도형은 유지하되 점 노이즈만 효과적으로 제거
             if length >= 5 and area > 5: 
                 epsilon = 0.001 * length 
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
@@ -140,16 +97,11 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                     current_path = raw_contours.pop(0)
             optimized_contours.append(current_path)
         
-        # G-Code 생성 (필요 시 내부적으로 사용 가능하나 응답에서는 제외)
-        # gcode = generate_gcode(optimized_contours)
-        
-        # 변환된 이미지를 다시 프론트엔드로 보내기 위해 base64로 인코딩
         _, buffer = cv2.imencode('.jpg', img)
         img_str = base64.b64encode(buffer).decode('utf-8')
         
         return {"width": w, "height": h, "contours": optimized_contours, "image": img_str}
     except Exception as e:
-        print(f"오류: {str(e)}")
         return {"error": str(e)}
 
 if __name__ == "__main__":
