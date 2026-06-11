@@ -4,13 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vico - Ai Drawing Upload</title>
+    <title>Vico - Ai Drawing</title>
     <style>
         :root {
             --bg-color: #f8f9fa;
             --container-bg: #ffffff;
             --primary-color: #4a90e2;
             --secondary-color: #6c757d;
+            --danger-color: #ff4d4f;
             --border-color: #dee2e6;
             --text-color: #212529;
         }
@@ -43,7 +44,7 @@
             color: var(--primary-color);
         }
 
-        .upload-area {
+        .work-area {
             width: 100%;
             height: 350px;
             border: 2px dashed var(--border-color);
@@ -52,7 +53,6 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            cursor: pointer;
             transition: all 0.3s ease;
             margin-bottom: 30px;
             background-color: #ffffff;
@@ -60,81 +60,74 @@
             position: relative;
         }
 
-        .upload-area img {
+        #preview-image {
             width: 100%;
             height: 100%;
             object-fit: contain;
             display: none;
         }
 
-        .upload-area.has-image .upload-icon,
-        .upload-area.has-image .upload-text {
-            display: none;
-        }
-
-        .upload-area.has-image img {
-            display: block;
-        }
-
-        #drawing-canvas {
+        /* 캔버스 공통 스타일 */
+        canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            touch-action: none;
+        }
+
+        #input-canvas {
+            display: none;
+            cursor: crosshair;
+            z-index: 5;
+        }
+
+        #simulation-canvas {
+            display: none;
             pointer-events: none;
-            display: none;
-        }
-
-        #skip-button {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            padding: 8px 16px;
-            background-color: rgba(255, 255, 255, 0.8);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--secondary-color);
-            cursor: pointer;
-            display: none;
             z-index: 10;
-            transition: all 0.2s;
         }
 
-        #skip-button:hover {
-            background-color: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .upload-area.simulating #skip-button {
+        .work-area.has-image #preview-image {
             display: block;
         }
 
-        .upload-area.simulating img {
+        .work-area.has-image .center-msg {
+            display: none;
+        }
+
+        .work-area.drawing #input-canvas {
+            display: block;
+        }
+
+        .work-area.drawing .center-msg {
+            display: none;
+        }
+
+        .work-area.simulating #simulation-canvas {
+            display: block;
+        }
+
+        .work-area.simulating #preview-image {
             opacity: 0.1;
         }
 
-        .upload-area.simulating #drawing-canvas {
-            display: block;
-        }
-
-        .upload-area:hover {
+        .work-area:hover:not(.simulating):not(.drawing) {
             border-color: var(--primary-color);
             background-color: #f0f7ff;
+        }
+
+        .center-msg {
+            color: var(--secondary-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .upload-icon {
             font-size: 48px;
             margin-bottom: 10px;
-            color: var(--secondary-color);
-        }
-
-        .upload-text {
-            color: var(--secondary-color);
-            font-size: 0.95rem;
         }
 
         .button-group {
@@ -151,79 +144,50 @@
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s ease, background-color 0.2s ease;
+            min-width: 120px;
         }
 
         button:active {
             transform: scale(0.98);
         }
 
-        .btn-clear {
+        .btn-secondary {
             background-color: #e9ecef;
             color: var(--secondary-color);
         }
 
-        .btn-clear:hover {
-            background-color: #dee2e6;
-        }
-
-        .btn-upload {
+        .btn-primary {
             background-color: var(--primary-color);
             color: white;
         }
 
-        .btn-upload:hover {
-            background-color: #357abd;
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
         }
 
         #file-input {
             display: none;
         }
 
-        /* AI 토글 스위치 및 프로그레스 바 스타일 */
-        #ai-toggle-container {
+        #skip-button {
             position: absolute;
             top: 15px;
-            left: 15px;
-            width: 50px;
-            height: 50px;
-            z-index: 10;
-        }
-
-        #ai-switch {
-            width: 100%;
-            height: 100%;
-            background: #eee;
+            right: 15px;
+            padding: 8px 16px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--secondary-color);
             cursor: pointer;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 12px;
-            font-weight: bold;
-            color: #666;
-            border: 3px solid #ddd;
-            transition: all 0.3s;
-            box-sizing: border-box;
+            display: none;
+            z-index: 20;
         }
 
-        #ai-switch.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: #357abd;
-        }
-
-        #api-progress {
-            position: absolute;
-            top: -3px; left: -3px; right: -3px; bottom: -3px;
-            border-radius: 10px;
-            border: 3px solid transparent;
-            pointer-events: none;
-            transition: 0.5s;
-        }
-
-        #ai-switch.active #api-progress {
-            border: 3px solid #ffeb3b;
+        .work-area.simulating #skip-button {
+            display: block;
         }
     </style>
 </head>
@@ -233,195 +197,296 @@
     <div class="container">
         <h1>Ai Drawing</h1>
 
-        <label for="file-input" class="upload-area" id="drop-area">
-
-            <div class="upload-icon">🖼️</div>
-            <div class="upload-text">이미지를 드래그하거나 클릭하여 업로드하세요</div>
+        <div class="work-area" id="work-area">
+            <div class="center-msg" id="center-msg">
+                <div class="upload-icon">🎨</div>
+                <div class="upload-text">이미지를 업로드하거나 직접 그려보세요</div>
+            </div>
+            
             <img id="preview-image" src="#" alt="Preview">
-            <canvas id="drawing-canvas"></canvas>
-            <button id="skip-button" onclick="skipSimulation(event)">스킵</button>
+            <canvas id="input-canvas"></canvas>
+            <canvas id="simulation-canvas"></canvas>
+            
+            <button id="skip-button" onclick="skipSimulation()">스킵</button>
             <input type="file" id="file-input" accept="image/*">
-        </label>
+        </div>
 
-        <div class="button-group">
-            <button class="btn-clear" onclick="clearImage()">취소</button>
-            <button class="btn-upload" onclick="startUpload()">업로드</button>
+        <div class="button-group" id="button-group">
+            <button class="btn-primary" id="btn-left" onclick="handleLeftBtn()">이미지 업로드</button>
+            <button class="btn-primary" id="btn-right" onclick="handleRightBtn()">직접 그리기</button>
         </div>
     </div>
 
     <script>
+        const workArea = document.getElementById('work-area');
         const fileInput = document.getElementById('file-input');
         const previewImage = document.getElementById('preview-image');
-        const dropArea = document.getElementById('drop-area');
+        const inputCanvas = document.getElementById('input-canvas');
+        const simCanvas = document.getElementById('simulation-canvas');
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        
+        const inputCtx = inputCanvas.getContext('2d');
+        const simCtx = simCanvas.getContext('2d');
+
+        let mode = 'idle'; // idle, uploaded, drawing, simulating
+        let lastInputMode = 'idle'; 
+        let isDrawing = false;
         let animationId = null;
-        let currentDrawingData = null;
-        let isSimulating = false;
+        let currentContours = null;
+        let simData = null;
+
+        // 초기화 및 캔버스 설정
+        function initCanvas() {
+            inputCanvas.width = workArea.offsetWidth;
+            inputCanvas.height = workArea.offsetHeight;
+            simCanvas.width = workArea.offsetWidth;
+            simCanvas.height = workArea.offsetHeight;
+            
+            inputCtx.lineCap = 'round';
+            inputCtx.lineJoin = 'round';
+            inputCtx.lineWidth = 3;
+            inputCtx.strokeStyle = '#000';
+        }
+
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+
+        // 그리기 로직
+        inputCanvas.addEventListener('mousedown', startDrawing);
+        inputCanvas.addEventListener('mousemove', draw);
+        inputCanvas.addEventListener('mouseup', stopDrawing);
+        inputCanvas.addEventListener('mouseleave', stopDrawing);
+
+        function startDrawing(e) {
+            if (mode !== 'drawing') return;
+            isDrawing = true;
+            inputCtx.beginPath();
+            inputCtx.moveTo(e.offsetX, e.offsetY);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            inputCtx.lineTo(e.offsetX, e.offsetY);
+            inputCtx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
 
         // 파일 선택 시 이벤트 처리
-        fileInput.addEventListener('change', function () {
+        fileInput.addEventListener('change', function() {
             const file = this.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function (e) {
+                reader.onload = function(e) {
                     previewImage.src = e.target.result;
-                    dropArea.classList.add('has-image');
+                    lastInputMode = 'uploaded';
+                    // 파일 선택 즉시 서버로 전송하여 처리 및 시뮬레이션 시작
+                    processImage(file);
                 }
                 reader.readAsDataURL(file);
             }
         });
 
-        function clearImage() {
-            if (animationId) cancelAnimationFrame(animationId);
-            isSimulating = false;
-            fileInput.value = "";
-            previewImage.src = "#";
-            dropArea.classList.remove('has-image');
-            dropArea.classList.remove('simulating');
-            const canvas = document.getElementById('drawing-canvas');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        function setMode(newMode) {
+            mode = newMode;
+            workArea.className = 'work-area';
+            
+            if (mode === 'idle') {
+                btnLeft.textContent = '이미지 업로드';
+                btnLeft.className = 'btn-primary';
+                btnRight.textContent = '직접 그리기';
+                btnRight.className = 'btn-primary';
+                previewImage.src = '#';
+                inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+                simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+                fileInput.value = '';
+                simData = null;
+                lastInputMode = 'idle';
+            } 
+            else if (mode === 'uploaded') {
+                workArea.classList.add('has-image');
+                btnLeft.textContent = '이미지 변경';
+                btnLeft.className = 'btn-secondary';
+                btnRight.textContent = '취소';
+                btnRight.className = 'btn-danger';
+            } 
+            else if (mode === 'drawing') {
+                workArea.classList.add('drawing');
+                btnLeft.textContent = '취소';
+                btnLeft.className = 'btn-danger';
+                btnRight.textContent = '확인';
+                btnRight.className = 'btn-primary';
+                lastInputMode = 'drawing';
+            }
+            else if (mode === 'simulating') {
+                workArea.classList.add('simulating');
+                if (previewImage.src !== '#') workArea.classList.add('has-image');
+                
+                // 시뮬레이션 중에는 왼쪽은 취소, 오른쪽은 (파일이 있으면) 업로드 버튼으로 활용
+                btnLeft.textContent = '취소';
+                btnLeft.className = 'btn-danger';
+                btnRight.textContent = '업로드';
+                btnRight.className = 'btn-primary';
+            }
         }
 
-        async function startUpload() {
-            const file = fileInput.files[0];
-            if (!file) {
-                alert("먼저 이미지를 선택해주세요.");
-                return;
+        function handleLeftBtn() {
+            if (mode === 'idle' || mode === 'uploaded') {
+                fileInput.click();
+            } else if (mode === 'drawing' || mode === 'simulating') {
+                cancelSimulation();
+                setMode('idle');
             }
+        }
 
+        function handleRightBtn() {
+            if (mode === 'idle') {
+                setMode('drawing');
+            } else if (mode === 'uploaded') {
+                setMode('idle');
+            } else if (mode === 'drawing') {
+                confirmDrawing();
+            } else if (mode === 'simulating') {
+                alert("그림 전송 기능은 아직 준비 중입니다!");
+            }
+        }
+
+        async function confirmDrawing() {
+            // 캔버스 내용을 이미지로 변환 (배경을 흰색으로 채움)
+            // 투명 배경인 경우 OpenCV에서 외곽선 추출이 제대로 되지 않을 수 있음
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = inputCanvas.width;
+            tempCanvas.height = inputCanvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(inputCanvas, 0, 0);
+            
+            const dataUrl = tempCanvas.toDataURL('image/jpeg');
+            const blob = await (await fetch(dataUrl)).blob();
+            processImage(blob, true); // 직접 그리기 모드임을 알림
+        }
+
+        async function processImage(imageBlob, isDrawing = false) {
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', imageBlob, 'drawing.jpg');
+            formData.append('is_drawing', isDrawing);
 
             try {
                 const response = await fetch('/api/process-image', {
                     method: 'POST',
                     body: formData
                 });
-
-                if (!response.ok) throw new Error('서버 응답 오류');
-
                 const data = await response.json();
                 
-                // 변환된 이미지가 있으면 표시
-                if (data.image) {
-                    previewImage.src = 'data:image/jpeg;base64,' + data.image;
-                }
-                
-                // G-Code 팝업 표시
-                if (data.gcode) {
-                    const gcodeWindow = window.open("", "_blank", "width=600,height=400");
-                    gcodeWindow.document.write("<h1>G-Code</h1><pre>" + data.gcode + "</pre>");
-                }
-                
-                currentDrawingData = data;
-                simulateDrawing(data);
-            } catch (error) {
-                console.error(error);
-                alert("이미지 처리 중 오류가 발생했습니다.");
-            }
-        }
-
-        function skipSimulation(event) {
-            if (event) event.preventDefault();
-            if (animationId) cancelAnimationFrame(animationId);
-            
-            const canvas = document.getElementById('drawing-canvas');
-            const ctx = canvas.getContext('2d');
-            const data = currentDrawingData;
-            
-            if (!data) return;
-
-            // 이미지 원본 비율 유지하며 캔버스에 맞추기 위한 계산
-            const scale = Math.min(canvas.width / data.width, canvas.height / data.height);
-            const offsetX = (canvas.width - data.width * scale) / 2;
-            const offsetY = (canvas.height - data.height * scale) / 2;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = "#4a90e2";
-            ctx.lineWidth = 1;
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-
-            // 즉시 모든 선 그리기
-            data.contours.forEach(contour => {
-                ctx.beginPath();
-                ctx.moveTo(contour[0].x * scale + offsetX, contour[0].y * scale + offsetY);
-                for (let i = 1; i < contour.length; i++) {
-                    ctx.lineTo(contour[i].x * scale + offsetX, contour[i].y * scale + offsetY);
-                }
-                ctx.stroke();
-            });
-
-            isSimulating = false;
-        }
-
-        function simulateDrawing(data) {
-            if (animationId) cancelAnimationFrame(animationId);
-            isSimulating = true;
-            
-            const canvas = document.getElementById('drawing-canvas');
-            const ctx = canvas.getContext('2d');
-            const container = document.getElementById('drop-area');
-
-            // 캔버스 크기 설정 (표시되는 크기에 맞춤)
-            canvas.width = container.offsetWidth;
-            canvas.height = container.offsetHeight;
-
-            // 이미지 원본 비율 유지하며 캔버스에 맞추기 위한 계산
-            const scale = Math.min(canvas.width / data.width, canvas.height / data.height);
-            const offsetX = (canvas.width - data.width * scale) / 2;
-            const offsetY = (canvas.height - data.height * scale) / 2;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = "#4a90e2";
-            ctx.lineWidth = 1;
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-
-            container.classList.add('simulating');
-
-            let contourIndex = 0;
-            let pointIndex = 0;
-            const pointsPerFrame = 15;
-
-            function drawNextPoint() {
-                if (!isSimulating) return;
-                if (contourIndex >= data.contours.length) {
-                    isSimulating = false;
+                if (data.error) throw new Error(data.error);
+                if (!data.contours || data.contours.length === 0) {
+                    alert("추출된 선이 없습니다. 더 명확하게 그려주세요.");
+                    setMode('drawing');
                     return;
                 }
 
-                let pointsDrawnInThisFrame = 0;
-                while (pointsDrawnInThisFrame < pointsPerFrame && contourIndex < data.contours.length) {
-                    const contour = data.contours[contourIndex];
-                    
-                    if (pointIndex === 0) {
-                        ctx.beginPath();
-                        const startP = contour[0];
-                        ctx.moveTo(startP.x * scale + offsetX, startP.y * scale + offsetY);
-                    } else {
-                        const p = contour[pointIndex];
-                        ctx.lineTo(p.x * scale + offsetX, p.y * scale + offsetY);
-                        ctx.stroke();
-                    }
-
-                    pointIndex++;
-                    pointsDrawnInThisFrame++;
-
-                    if (pointIndex >= contour.length) {
-                        contourIndex++;
-                        pointIndex = 0;
-                    }
-                }
-
-                if (contourIndex < data.contours.length) {
-                    animationId = requestAnimationFrame(drawNextPoint);
-                } else {
-                    isSimulating = false;
-                }
+                simData = data;
+                startSimulation(data);
+            } catch (err) {
+                console.error(err);
+                alert("처리 중 오류가 발생했습니다: " + err.message);
+                setMode('idle');
             }
+        }
 
-            animationId = requestAnimationFrame(drawNextPoint);
+        // 이미지 업로드 시에도 호출
+        function startUpload() {
+            if (fileInput.files[0]) {
+                processImage(fileInput.files[0]);
+            }
+        }
+
+        // 시뮬레이션 로직
+        function startSimulation(data) {
+            setMode('simulating');
+            if (animationId) cancelAnimationFrame(animationId);
+
+            simCanvas.width = workArea.offsetWidth;
+            simCanvas.height = workArea.offsetHeight;
+            
+            // 비율 계산
+            const scale = Math.min(simCanvas.width / data.width, simCanvas.height / data.height);
+            const offsetX = (simCanvas.width - data.width * scale) / 2;
+            const offsetY = (simCanvas.height - data.height * scale) / 2;
+
+            simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+            simCtx.strokeStyle = "#4a90e2";
+            simCtx.lineWidth = (lastInputMode === 'drawing') ? 5 : 2; // 그리기 모드였으면 2배 굵게
+            simCtx.lineCap = 'round';
+            simCtx.lineJoin = 'round';
+            
+            let contourIdx = 0;
+            let pointIdx = 0;
+            const speed = 15; // 그리기 속도 조절
+
+            function animate() {
+                if (mode !== 'simulating') return; // 모드가 바뀌면 중단
+
+                if (contourIdx >= data.contours.length) {
+                    animationId = null;
+                    return;
+                }
+
+                for (let i = 0; i < speed; i++) {
+                    if (contourIdx >= data.contours.length) break;
+                    
+                    const contour = data.contours[contourIdx];
+                    if (pointIdx === 0) {
+                        simCtx.beginPath();
+                        simCtx.moveTo(contour[0].x * scale + offsetX, contour[0].y * scale + offsetY);
+                    } else {
+                        simCtx.lineTo(contour[pointIdx].x * scale + offsetX, contour[pointIdx].y * scale + offsetY);
+                        simCtx.stroke();
+                    }
+
+                    pointIdx++;
+                    if (pointIdx >= contour.length) {
+                        contourIdx++;
+                        pointIdx = 0;
+                    }
+                }
+                animationId = requestAnimationFrame(animate);
+            }
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function skipSimulation() {
+            if (animationId) cancelAnimationFrame(animationId);
+            const data = simData;
+            if (!data) return;
+
+            const scale = Math.min(simCanvas.width / data.width, simCanvas.height / data.height);
+            const offsetX = (simCanvas.width - data.width * scale) / 2;
+            const offsetY = (simCanvas.height - data.height * scale) / 2;
+
+            simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+            simCtx.strokeStyle = "#4a90e2";
+            simCtx.lineWidth = (lastInputMode === 'drawing') ? 5 : 2; // 스킵 시에도 동일 적용
+
+            data.contours.forEach(contour => {
+                simCtx.beginPath();
+                simCtx.moveTo(contour[0].x * scale + offsetX, contour[0].y * scale + offsetY);
+                for (let i = 1; i < contour.length; i++) {
+                    simCtx.lineTo(contour[i].x * scale + offsetX, contour[i].y * scale + offsetY);
+                }
+                simCtx.stroke();
+            });
+            animationId = null;
+        }
+
+        function cancelSimulation() {
+            if (animationId) cancelAnimationFrame(animationId);
+            animationId = null;
         }
     </script>
 </body>

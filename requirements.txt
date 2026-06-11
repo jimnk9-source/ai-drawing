@@ -5,3 +5,5 @@ pydantic
 python-multipart
 opencv-python-headless
 numpy
+google-generativeai
+python-dotenv

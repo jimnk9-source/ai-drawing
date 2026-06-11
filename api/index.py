@@ -1,22 +1,109 @@
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import FileResponse
+from dotenv import load_dotenv
+import google.generativeai as genai
 import os
+import cv2
+import numpy as np
+import base64
 
 app = FastAPI()
 
-# Vercel 환경에서는 상대 경로 관리가 중요합니다.
+# 1. 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "../web/frontend")
 
+# 환경변수 로드
+load_dotenv()
+api_key = os.getenv("GOOGLE_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+
 @app.get("/")
 async def read_index():
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    return FileResponse(index_path)
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-# API 엔드포인트 예시 (나중에 이미지 분석용으로 사용)
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok"}
 
-# 이 파일이 Vercel의 진입점이 됩니다.
+@app.post("/api/process-image")
+async def process_image(file: UploadFile = File(...), is_drawing: str = Form("false")):
+    try:
+        is_drawing_bool = is_drawing.lower() == "true"
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            return {"error": "이미지를 읽을 수 없습니다."}
+
+        h, w = img.shape[:2]
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        gray_clahe = clahe.apply(gray)
+        
+        blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
+        edged = cv2.Canny(blurred, 50, 150) 
+        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
+        combined_edges = cv2.bitwise_or(edged, thresh)
+
+        contours, _ = cv2.findContours(combined_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
+        
+        raw_contours = []
+        
+        if not is_drawing_bool:
+            _, black_mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)
+            black_cnts, _ = cv2.findContours(black_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in black_cnts:
+                area = cv2.contourArea(cnt)
+                if area > 2500 and area < (h * w * 0.1):
+                    spacing = 8
+                    mask = np.zeros_like(gray)
+                    cv2.drawContours(mask, [cnt], -1, 255, -1)
+                    for d in range(-h, w, spacing):
+                        line_points = []
+                        for x in range(max(0, d), min(w, h + d)):
+                            y = x - d
+                            if mask[y, x] > 0: line_points.append({"x": x, "y": y})
+                            else:
+                                if len(line_points) > 1: raw_contours.append(line_points)
+                                line_points = []
+                        if len(line_points) > 1: raw_contours.append(line_points)
+            
+        for cnt in contours:
+            length = cv2.arcLength(cnt, True)
+            area = cv2.contourArea(cnt)
+            if length >= 5 and area > 5: 
+                epsilon = 0.001 * length 
+                approx = cv2.approxPolyDP(cnt, epsilon, True)
+                points = [{"x": int(p[0][0]), "y": int(p[0][1])} for p in approx]
+                if len(points) > 1:
+                    raw_contours.append(points)
+
+        optimized_contours = []
+        if raw_contours:
+            raw_contours.sort(key=lambda c: (c[0]['y'], c[0]['x']))
+            current_path = raw_contours.pop(0)
+            while raw_contours:
+                last_p = current_path[-1]
+                found_next = False
+                for i in range(min(len(raw_contours), 20)):
+                    next_cnt = raw_contours[i]
+                    start_p = next_cnt[0]
+                    dist = ((last_p['x'] - start_p['x'])**2 + (last_p['y'] - start_p['y'])**2)**0.5
+                    if dist < 10:
+                        current_path.extend(raw_contours.pop(i))
+                        found_next = True
+                        break
+                if not found_next:
+                    optimized_contours.append(current_path)
+                    current_path = raw_contours.pop(0)
+            optimized_contours.append(current_path)
+        
+        _, buffer = cv2.imencode('.jpg', img)
+        img_str = base64.b64encode(buffer).decode('utf-8')
+        
+        return {"width": w, "height": h, "contours": optimized_contours, "image": img_str}
+    except Exception as e:
+        return {"error": str(e)}

@@ -64,8 +64,9 @@ def generate_gcode(contours):
     return "\n".join(gcode)
 
 @app.post("/api/process-image")
-async def process_image(file: UploadFile = File(...)):
+async def process_image(file: UploadFile = File(...), is_drawing: str = Form("false")):
     try:
+        is_drawing_bool = is_drawing.lower() == "true"
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -83,27 +84,30 @@ async def process_image(file: UploadFile = File(...)):
         edged = cv2.Canny(blurred, 50, 150) 
         thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
         combined_edges = cv2.bitwise_or(edged, thresh)
-        _, black_mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV) # 25 -> 20 (더 어두운 영역만)
 
         contours, _ = cv2.findContours(combined_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
-        black_cnts, _ = cv2.findContours(black_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+        
         raw_contours = []
-        for cnt in black_cnts:
-            area = cv2.contourArea(cnt)
-            if area > 2500 and area < (h * w * 0.1): # 1500 -> 2500 (더 큰 영역만)
-                spacing = 8 # 밀도를 2배 높이기 위해 15에서 8로 낮춤
-                mask = np.zeros_like(gray)
-                cv2.drawContours(mask, [cnt], -1, 255, -1)
-                for d in range(-h, w, spacing):
-                    line_points = []
-                    for x in range(max(0, d), min(w, h + d)):
-                        y = x - d
-                        if mask[y, x] > 0: line_points.append({"x": x, "y": y})
-                        else:
-                            if len(line_points) > 1: raw_contours.append(line_points)
-                            line_points = []
-                    if len(line_points) > 1: raw_contours.append(line_points)
+        
+        # 빗금(해칭) 로직: 직접 그리기가 아닌 경우에만 실행
+        if not is_drawing_bool:
+            _, black_mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)
+            black_cnts, _ = cv2.findContours(black_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in black_cnts:
+                area = cv2.contourArea(cnt)
+                if area > 2500 and area < (h * w * 0.1):
+                    spacing = 8
+                    mask = np.zeros_like(gray)
+                    cv2.drawContours(mask, [cnt], -1, 255, -1)
+                    for d in range(-h, w, spacing):
+                        line_points = []
+                        for x in range(max(0, d), min(w, h + d)):
+                            y = x - d
+                            if mask[y, x] > 0: line_points.append({"x": x, "y": y})
+                            else:
+                                if len(line_points) > 1: raw_contours.append(line_points)
+                                line_points = []
+                        if len(line_points) > 1: raw_contours.append(line_points)
             
         for cnt in contours:
             length = cv2.arcLength(cnt, True)
@@ -136,14 +140,14 @@ async def process_image(file: UploadFile = File(...)):
                     current_path = raw_contours.pop(0)
             optimized_contours.append(current_path)
         
-        # G-Code 생성
-        gcode = generate_gcode(optimized_contours)
+        # G-Code 생성 (필요 시 내부적으로 사용 가능하나 응답에서는 제외)
+        # gcode = generate_gcode(optimized_contours)
         
         # 변환된 이미지를 다시 프론트엔드로 보내기 위해 base64로 인코딩
         _, buffer = cv2.imencode('.jpg', img)
         img_str = base64.b64encode(buffer).decode('utf-8')
         
-        return {"width": w, "height": h, "contours": optimized_contours, "image": img_str, "gcode": gcode}
+        return {"width": w, "height": h, "contours": optimized_contours, "image": img_str}
     except Exception as e:
         print(f"오류: {str(e)}")
         return {"error": str(e)}
