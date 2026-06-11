@@ -252,11 +252,41 @@
         window.addEventListener('resize', initCanvas);
         initCanvas();
 
-        // 그리기 로직
+        // 그리기 로직 (마우스)
         inputCanvas.addEventListener('mousedown', startDrawing);
         inputCanvas.addEventListener('mousemove', draw);
         inputCanvas.addEventListener('mouseup', stopDrawing);
         inputCanvas.addEventListener('mouseleave', stopDrawing);
+
+        // 그리기 로직 (터치 - 모바일 지원)
+        inputCanvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        inputCanvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        inputCanvas.addEventListener('touchend', stopDrawing);
+
+        function getTouchPos(touchEvent) {
+            const rect = inputCanvas.getBoundingClientRect();
+            return {
+                x: touchEvent.touches[0].clientX - rect.left,
+                y: touchEvent.touches[0].clientY - rect.top
+            };
+        }
+
+        function handleTouchStart(e) {
+            if (mode !== 'drawing') return;
+            e.preventDefault();
+            const pos = getTouchPos(e);
+            isDrawing = true;
+            inputCtx.beginPath();
+            inputCtx.moveTo(pos.x, pos.y);
+        }
+
+        function handleTouchMove(e) {
+            if (!isDrawing || mode !== 'drawing') return;
+            e.preventDefault();
+            const pos = getTouchPos(e);
+            inputCtx.lineTo(pos.x, pos.y);
+            inputCtx.stroke();
+        }
 
         function startDrawing(e) {
             if (mode !== 'drawing') return;
