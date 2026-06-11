@@ -189,10 +189,33 @@
         .work-area.simulating #skip-button {
             display: block;
         }
+
+        /* 프로그레스 바 스타일 */
+        #progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: transparent;
+            z-index: 9999;
+            display: none;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--primary-color);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
+        }
     </style>
 </head>
 
 <body>
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
 
     <div class="container">
         <h1>Ai Drawing</h1>
