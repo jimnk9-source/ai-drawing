@@ -7,12 +7,24 @@ import cv2
 import numpy as np
 import base64
 import uvicorn
+from pydantic import BaseModel
+from typing import Optional
 
 app = FastAPI()
 
+# 데이터 모델 정의
+class DrawingTask(BaseModel):
+    gcode: str
+
+# 임시 데이터 저장소
+drawing_queue = {
+    "task_id": 0,
+    "gcode": "",
+    "status": "idle"
+}
+
 # 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# 로컬 실행 시와 Vercel 실행 시의 경로 차이를 대응
 FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
 if not os.path.exists(FRONTEND_DIR):
     FRONTEND_DIR = os.path.join(BASE_DIR, "../../web/frontend")
@@ -22,6 +34,42 @@ load_dotenv()
 @app.get("/")
 async def read_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+# G-Code 생성 함수
+def generate_gcode(contours):
+    gcode = [
+        "G21 ; Set units to mm",
+        "G90 ; Absolute positioning",
+        "M3 S30 ; Pen Up"
+    ]
+    for path in contours:
+        if not path: continue
+        gcode.append(f"G0 X{path[0]['x']} Y{path[0]['y']}")
+        gcode.append("M3 S10 ; Pen Down")
+        for p in path:
+            gcode.append(f"G1 X{p['x']} Y{p['y']}")
+        gcode.append("M3 S30 ; Pen Up")
+    gcode.append("G0 X0 Y0 ; Return to home")
+    return "\n".join(gcode)
+
+@app.get("/api/get-task")
+async def get_task():
+    global drawing_queue
+    if drawing_queue["status"] == "pending":
+        drawing_queue["status"] = "idle"
+        return {"task_id": drawing_queue["task_id"], "gcode": drawing_queue["gcode"]}
+    return {"task_id": 0, "gcode": ""}
+
+@app.post("/api/push-task")
+async def push_task(task: DrawingTask):
+    global drawing_queue
+    try:
+        drawing_queue["gcode"] = task.gcode
+        drawing_queue["task_id"] += 1
+        drawing_queue["status"] = "pending"
+        return {"status": "success", "task_id": drawing_queue["task_id"]}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/process-image")
 async def process_image(file: UploadFile = File(...), is_drawing: str = Form("false")):
@@ -97,10 +145,11 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                     current_path = raw_contours.pop(0)
             optimized_contours.append(current_path)
         
+        gcode = generate_gcode(optimized_contours)
         _, buffer = cv2.imencode('.jpg', img)
         img_str = base64.b64encode(buffer).decode('utf-8')
         
-        return {"width": w, "height": h, "contours": optimized_contours, "image": img_str}
+        return {"width": w, "height": h, "contours": optimized_contours, "image": img_str, "gcode": gcode}
     except Exception as e:
         return {"error": str(e)}
 

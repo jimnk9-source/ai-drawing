@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import base64
 from pydantic import BaseModel
+from typing import Optional
 
 app = FastAPI()
 
@@ -24,7 +25,7 @@ if api_key:
 class DrawingTask(BaseModel):
     gcode: str
 
-# 임시 데이터 저장소
+# 임시 데이터 저장소 (Vercel 서버리스 특성상 초기화될 수 있음)
 drawing_queue = {
     "task_id": 0,
     "gcode": "",
@@ -35,6 +36,10 @@ drawing_queue = {
 async def read_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok"}
+
 # G-Code 생성 함수
 def generate_gcode(contours):
     gcode = [
@@ -44,16 +49,19 @@ def generate_gcode(contours):
     ]
     for path in contours:
         if not path: continue
+        # 펜 이동 (Up 상태로 시작점으로 이동)
         gcode.append(f"G0 X{path[0]['x']} Y{path[0]['y']}")
         gcode.append("M3 S10 ; Pen Down")
         for p in path:
             gcode.append(f"G1 X{p['x']} Y{p['y']}")
+        # 펜 업 (패스 끝)
         gcode.append("M3 S30 ; Pen Up")
     gcode.append("G0 X0 Y0 ; Return to home")
     return "\n".join(gcode)
 
 @app.get("/api/get-task")
 async def get_task():
+    """ESP32가 데이터를 가져가기 위해 호출하는 엔드포인트"""
     global drawing_queue
     if drawing_queue["status"] == "pending":
         drawing_queue["status"] = "idle"
@@ -62,6 +70,7 @@ async def get_task():
 
 @app.post("/api/push-task")
 async def push_task(task: DrawingTask):
+    """프런트엔드에서 G-Code를 서버에 등록할 때 호출"""
     global drawing_queue
     try:
         drawing_queue["gcode"] = task.gcode
@@ -78,28 +87,34 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None: return {"error": "이미지를 읽을 수 없습니다."}
         
+        if img is None:
+            return {"error": "이미지를 읽을 수 없습니다."}
+
         h, w = img.shape[:2]
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         gray_clahe = clahe.apply(gray)
+        
         blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
         edged = cv2.Canny(blurred, 50, 150) 
         thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
         combined_edges = cv2.bitwise_or(edged, thresh)
+
         contours, _ = cv2.findContours(combined_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
         
         raw_contours = []
+        
         if not is_drawing_bool:
             _, black_mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)
             black_cnts, _ = cv2.findContours(black_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for cnt in black_cnts:
                 area = cv2.contourArea(cnt)
                 if area > 2500 and area < (h * w * 0.1):
+                    spacing = 8
                     mask = np.zeros_like(gray)
                     cv2.drawContours(mask, [cnt], -1, 255, -1)
-                    for d in range(-h, w, 8):
+                    for d in range(-h, w, spacing):
                         line_points = []
                         for x in range(max(0, d), min(w, h + d)):
                             y = x - d
@@ -113,9 +128,11 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
             length = cv2.arcLength(cnt, True)
             area = cv2.contourArea(cnt)
             if length >= 5 and area > 5: 
-                approx = cv2.approxPolyDP(cnt, 0.001 * length, True)
+                epsilon = 0.001 * length 
+                approx = cv2.approxPolyDP(cnt, epsilon, True)
                 points = [{"x": int(p[0][0]), "y": int(p[0][1])} for p in approx]
-                if len(points) > 1: raw_contours.append(points)
+                if len(points) > 1:
+                    raw_contours.append(points)
 
         optimized_contours = []
         if raw_contours:
@@ -126,7 +143,8 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                 found_next = False
                 for i in range(min(len(raw_contours), 20)):
                     next_cnt = raw_contours[i]
-                    dist = ((last_p['x'] - next_cnt[0]['x'])**2 + (last_p['y'] - next_cnt[0]['y'])**2)**0.5
+                    start_p = next_cnt[0]
+                    dist = ((last_p['x'] - start_p['x'])**2 + (last_p['y'] - start_p['y'])**2)**0.5
                     if dist < 10:
                         current_path.extend(raw_contours.pop(i))
                         found_next = True
@@ -136,9 +154,18 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                     current_path = raw_contours.pop(0)
             optimized_contours.append(current_path)
         
+        # G-Code 미리 생성하여 응답에 포함
         gcode = generate_gcode(optimized_contours)
+        
         _, buffer = cv2.imencode('.jpg', img)
         img_str = base64.b64encode(buffer).decode('utf-8')
-        return {"width": w, "height": h, "contours": optimized_contours, "image": img_str, "gcode": gcode}
+        
+        return {
+            "width": w, 
+            "height": h, 
+            "contours": optimized_contours, 
+            "image": img_str,
+            "gcode": gcode
+        }
     except Exception as e:
         return {"error": str(e)}

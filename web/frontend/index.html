@@ -218,6 +218,7 @@
     </div>
 
     <div class="container">
+        <div style="text-align: right; font-size: 10px; color: #ccc; margin-bottom: -15px;">v1.2</div>
         <h1>Ai Drawing</h1>
 
         <div class="work-area" id="work-area">
@@ -378,10 +379,9 @@
                 workArea.classList.add('simulating');
                 if (previewImage.src !== '#') workArea.classList.add('has-image');
                 
-                // 시뮬레이션 중에는 왼쪽은 취소, 오른쪽은 (파일이 있으면) 업로드 버튼으로 활용
                 btnLeft.textContent = '취소';
                 btnLeft.className = 'btn-danger';
-                btnRight.textContent = '업로드';
+                btnRight.textContent = '전송'; // 업로드 -> 전송으로 이름 변경
                 btnRight.className = 'btn-primary';
             }
         }
@@ -403,7 +403,51 @@
             } else if (mode === 'drawing') {
                 confirmDrawing();
             } else if (mode === 'simulating') {
-                alert("그림 전송 기능은 아직 준비 중입니다!");
+                uploadToQueue(); // 서버 대기열로 전송
+            }
+        }
+
+        async function uploadToQueue() {
+            if (!simData || !simData.gcode) {
+                alert("전송할 데이터가 없습니다.");
+                return;
+            }
+
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '50%';
+
+            try {
+                const response = await fetch('/api/push-task', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ gcode: simData.gcode })
+                });
+                
+                if (!response.ok) {
+                    const errorDetail = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorDetail}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    progressBar.style.width = '100%';
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        alert("ESP32로 전송 준비 완료! (Task ID: " + result.task_id + ")");
+                    }, 500);
+                } else {
+                    throw new Error(result.message || "서버에서 실패 응답을 보냈습니다.");
+                }
+            } catch (err) {
+                progressContainer.style.display = 'none';
+                console.error("Upload Error:", err);
+                alert("전송 오류: " + err.message);
             }
         }
 
@@ -425,40 +469,42 @@
         }
 
         async function processImage(imageBlob, isDrawing = false) {
-            const formData = new FormData();
-            formData.append('file', imageBlob, 'drawing.jpg');
-            formData.append('is_drawing', isDrawing);
-
             const progressContainer = document.getElementById('progress-container');
             const progressBar = document.getElementById('progress-bar');
             
-            // 프로그레스 바 초기화 및 표시
+            // 프로그레스 바 시작
             progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            
-            // 가짜 프로그레스 애니메이션 (90%까지 서서히 증가)
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                if (progress < 90) {
-                    progress += (90 - progress) * 0.1;
-                    progressBar.style.width = progress + '%';
-                }
-            }, 200);
+            progressBar.style.width = '10%';
 
             try {
+                // 1. 이미지 최적화 (모바일 고화질 대응)
+                const optimizedBlob = await resizeImage(imageBlob, 1024);
+                progressBar.style.width = '30%';
+
+                const formData = new FormData();
+                formData.append('file', optimizedBlob, 'image.jpg');
+                formData.append('is_drawing', isDrawing);
+                
+                // 가짜 프로그레스 애니메이션
+                let progress = 30;
+                const progressInterval = setInterval(() => {
+                    if (progress < 90) {
+                        progress += (90 - progress) * 0.1;
+                        progressBar.style.width = progress + '%';
+                    }
+                }, 200);
+
                 const response = await fetch('/api/process-image', {
                     method: 'POST',
                     body: formData
                 });
                 const data = await response.json();
                 
-                // 완료 시 100%로 채우기
                 clearInterval(progressInterval);
                 progressBar.style.width = '100%';
                 
                 setTimeout(() => {
                     progressContainer.style.display = 'none';
-                    progressBar.style.width = '0%';
                 }, 500);
 
                 if (data.error) throw new Error(data.error);
@@ -471,12 +517,42 @@
                 simData = data;
                 startSimulation(data);
             } catch (err) {
-                clearInterval(progressInterval);
                 progressContainer.style.display = 'none';
                 console.error(err);
                 alert("처리 중 오류가 발생했습니다: " + err.message);
                 setMode('idle');
             }
+        }
+
+        // 이미지 크기 조절 함수
+        function resizeImage(blob, maxSize) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxSize) {
+                            height *= maxSize / width;
+                            width = maxSize;
+                        }
+                    } else {
+                        if (height > maxSize) {
+                            width *= maxSize / height;
+                            height = maxSize;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.8);
+                };
+                img.src = URL.createObjectURL(blob);
+            });
         }
 
         // 이미지 업로드 시에도 호출
