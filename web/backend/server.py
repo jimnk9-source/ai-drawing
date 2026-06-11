@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
 import os
 import cv2
@@ -31,34 +31,61 @@ if not os.path.exists(FRONTEND_DIR):
 
 load_dotenv()
 
+# --- G-Code 생성 로직 (하드웨어 최적화 버전) ---
+
+def generate_gcode(contours, img_w, img_h):
+    # A4 종이 너비(210mm) 기준, 여백 제외 약 180mm로 스케일링
+    target_width_mm = 180.0
+    scale = target_width_mm / img_w
+    
+    gcode = [
+        "G21 ; Set units to mm",
+        "G90 ; Absolute positioning",
+        "M3 S30 ; Pen Up",
+        "G4 P150 ; Wait for servo",
+        "F2000 ; Set default speed"
+    ]
+    
+    for path in contours:
+        if not path: continue
+        
+        # 1. 시작점으로 이동 (Pen Up 상태)
+        start_x = round(path[0]['x'] * scale, 2)
+        start_y = round((img_h - path[0]['y']) * scale, 2) # Y축 반전
+        gcode.append(f"G0 X{start_x} Y{start_y}")
+        
+        # 2. 펜 내리기
+        gcode.append("M3 S10 ; Pen Down")
+        gcode.append("G4 P150 ; Wait for servo")
+        
+        # 3. 경로 따라 그리기
+        for p in path:
+            x_mm = round(p['x'] * scale, 2)
+            y_mm = round((img_h - p['y']) * scale, 2) # Y축 반전
+            gcode.append(f"G1 X{x_mm} Y{y_mm} F1500")
+            
+        # 4. 펜 올리기 (패스 끝)
+        gcode.append("M3 S30 ; Pen Up")
+        gcode.append("G4 P150 ; Wait for servo")
+        
+    gcode.append("G0 X0 Y0 ; Return to home")
+    return "\n".join(gcode)
+
+# --- API 정의 시작 ---
+
 @app.get("/")
 async def read_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-# G-Code 생성 함수
-def generate_gcode(contours):
-    gcode = [
-        "G21 ; Set units to mm",
-        "G90 ; Absolute positioning",
-        "M3 S30 ; Pen Up"
-    ]
-    for path in contours:
-        if not path: continue
-        gcode.append(f"G0 X{path[0]['x']} Y{path[0]['y']}")
-        gcode.append("M3 S10 ; Pen Down")
-        for p in path:
-            gcode.append(f"G1 X{p['x']} Y{p['y']}")
-        gcode.append("M3 S30 ; Pen Up")
-    gcode.append("G0 X0 Y0 ; Return to home")
-    return "\n".join(gcode)
-
-@app.get("/api/get-task")
-async def get_task():
+@app.post("/api/clear-task")
+async def clear_task():
     global drawing_queue
-    if drawing_queue["status"] == "pending":
-        drawing_queue["status"] = "idle"
-        return {"task_id": drawing_queue["task_id"], "gcode": drawing_queue["gcode"]}
-    return {"task_id": 0, "gcode": ""}
+    try:
+        drawing_queue = {"task_id": 0, "gcode": "", "status": "idle"}
+        print(">>> SUCCESS: Queue Reset")
+        return JSONResponse(content={"status": "success", "message": "모든 G-Code 데이터가 삭제되었습니다."})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.post("/api/push-task")
 async def push_task(task: DrawingTask):
@@ -71,6 +98,14 @@ async def push_task(task: DrawingTask):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/get-task")
+async def get_task():
+    global drawing_queue
+    if drawing_queue["status"] == "pending":
+        drawing_queue["status"] = "idle"
+        return {"task_id": drawing_queue["task_id"], "gcode": drawing_queue["gcode"]}
+    return {"task_id": 0, "gcode": ""}
+
 @app.post("/api/process-image")
 async def process_image(file: UploadFile = File(...), is_drawing: str = Form("false")):
     try:
@@ -78,24 +113,19 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-        if img is None:
-            return {"error": "이미지를 읽을 수 없습니다."}
+        if img is None: return {"error": "이미지를 읽을 수 없습니다."}
 
         h, w = img.shape[:2]
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         gray_clahe = clahe.apply(gray)
-        
         blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
         edged = cv2.Canny(blurred, 50, 150) 
         thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
         combined_edges = cv2.bitwise_or(edged, thresh)
-
         contours, _ = cv2.findContours(combined_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
         
         raw_contours = []
-        
         if not is_drawing_bool:
             _, black_mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)
             black_cnts, _ = cv2.findContours(black_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -122,8 +152,7 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                 epsilon = 0.001 * length 
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 points = [{"x": int(p[0][0]), "y": int(p[0][1])} for p in approx]
-                if len(points) > 1:
-                    raw_contours.append(points)
+                if len(points) > 1: raw_contours.append(points)
 
         optimized_contours = []
         if raw_contours:
@@ -134,8 +163,7 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                 found_next = False
                 for i in range(min(len(raw_contours), 20)):
                     next_cnt = raw_contours[i]
-                    start_p = next_cnt[0]
-                    dist = ((last_p['x'] - start_p['x'])**2 + (last_p['y'] - start_p['y'])**2)**0.5
+                    dist = ((last_p['x'] - next_cnt[0]['x'])**2 + (last_p['y'] - next_cnt[0]['y'])**2)**0.5
                     if dist < 10:
                         current_path.extend(raw_contours.pop(i))
                         found_next = True
@@ -145,10 +173,11 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                     current_path = raw_contours.pop(0)
             optimized_contours.append(current_path)
         
-        gcode = generate_gcode(optimized_contours)
+        # 수정된 G-Code 생성 호출 (w, h 파라미터 추가)
+        gcode = generate_gcode(optimized_contours, w, h)
+        
         _, buffer = cv2.imencode('.jpg', img)
         img_str = base64.b64encode(buffer).decode('utf-8')
-        
         return {"width": w, "height": h, "contours": optimized_contours, "image": img_str, "gcode": gcode}
     except Exception as e:
         return {"error": str(e)}
