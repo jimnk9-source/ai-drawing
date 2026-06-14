@@ -117,6 +117,7 @@
         .work-area:hover:not(.simulating):not(.drawing) {
             border-color: var(--primary-color);
             background-color: #f0f7ff;
+            cursor: pointer;
         }
 
         .center-msg {
@@ -124,6 +125,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            pointer-events: none; /* 클릭 이벤트가 부모인 work-area로 전달되도록 설정 */
         }
 
         .upload-icon {
@@ -316,7 +318,7 @@
         <div class="work-area" id="work-area">
             <div class="center-msg" id="center-msg">
                 <div class="upload-icon">🎨</div>
-                <div class="upload-text">이미지를 업로드하거나 직접 그려보세요</div>
+                <div class="upload-text">클릭하여 이미지를 업로드하거나 직접 그려보세요</div>
             </div>
             
             <img id="preview-image" src="#" alt="Preview">
@@ -403,6 +405,16 @@
 
         window.addEventListener('resize', initCanvas);
         initCanvas();
+
+        // 영역 클릭 시 파일 업로드 트리거
+        workArea.addEventListener('click', (e) => {
+            // 스킵 버튼을 클릭한 경우 등 다른 요소의 이벤트를 방해하지 않기 위해 확인
+            if (e.target.closest('#skip-button')) return;
+            
+            if (mode === 'idle' || mode === 'uploaded') {
+                fileInput.click();
+            }
+        });
 
         // 그리기 로직 (마우스)
         inputCanvas.addEventListener('mousedown', startDrawing);
@@ -694,6 +706,8 @@
         function startSimulation(data) {
             setMode('simulating');
             if (animationId) cancelAnimationFrame(animationId);
+            
+            document.getElementById('skip-button').style.display = 'block'; // 시뮬레이션 시작 시 버튼 표시
 
             simCanvas.width = workArea.offsetWidth;
             simCanvas.height = workArea.offsetHeight;
@@ -718,6 +732,7 @@
 
                 if (contourIdx >= data.contours.length) {
                     animationId = null;
+                    document.getElementById('skip-button').style.display = 'none'; // 시뮬레이션 완료 시 버튼 숨김
                     return;
                 }
 
@@ -766,6 +781,7 @@
                 simCtx.stroke();
             });
             animationId = null;
+            document.getElementById('skip-button').style.display = 'none'; // 스킵 시 버튼 숨김
         }
 
         function cancelSimulation() {
