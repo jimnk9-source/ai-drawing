@@ -125,7 +125,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            pointer-events: none; /* 클릭 이벤트가 부모인 work-area로 전달되도록 설정 */
+            pointer-events: none;
+            /* 클릭 이벤트가 부모인 work-area로 전달되도록 설정 */
         }
 
         .upload-icon {
@@ -248,7 +249,7 @@
             right: 0;
             background: white;
             border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             padding: 10px;
             display: none;
             width: 220px;
@@ -261,8 +262,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .menu-item {
@@ -288,6 +296,151 @@
         .menu-item.danger:hover {
             background-color: #fff1f0;
         }
+
+        /* 수정 도구 스타일 */
+        #edit-tools {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 16px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 30;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .edit-tool-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            background: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            transition: all 0.2s;
+            padding: 0;
+            min-width: auto;
+        }
+
+        .edit-tool-btn.active {
+            border-color: var(--primary-color);
+            background-color: #f0f7ff;
+        }
+
+        .edit-tool-btn:hover {
+            background-color: #f8f9fa;
+        }
+
+        .work-area.editing #input-canvas {
+            display: block;
+            z-index: 15;
+            cursor: crosshair;
+        }
+
+        .work-area.editing #simulation-canvas {
+            display: block;
+            opacity: 1;
+            /* 투명도 원복 */
+        }
+
+        /* 지우개 확장 메뉴 스타일 */
+        .eraser-container {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .eraser-more-btn {
+            background: none;
+            border: none;
+            color: var(--secondary-color);
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0 4px;
+            /* 좌우 여백을 줄여서 버튼 크기 최소화 */
+            margin-left: 2px;
+            display: none;
+            min-width: auto;
+        }
+
+        .eraser-more-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .eraser-size-menu {
+            position: absolute;
+            left: 100%;
+            top: -10px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            display: none;
+            flex-direction: row;
+            padding: 4px;
+            gap: 3px;
+            z-index: 100;
+        }
+
+        .eraser-size-menu.show {
+            display: flex;
+        }
+
+        .size-btn {
+            background: none;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            min-width: unset;
+        }
+
+        .size-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .size-btn.active {
+            border-color: var(--primary-color);
+            background: #f0f7ff;
+        }
+
+        /* 점 모양 아이콘 */
+        .dot {
+            background-color: var(--text-color);
+            border-radius: 50%;
+            display: block;
+            flex-shrink: 0;
+        }
+
+        .size-btn.active .dot {
+            background-color: var(--primary-color);
+        }
+
+        .dot-sm {
+            width: 5px;
+            height: 5px;
+        }
+
+        .dot-md {
+            width: 12px;
+            height: 12px;
+        }
+
+        .dot-lg {
+            width: 18px;
+            height: 18px;
+        }
     </style>
 </head>
 
@@ -297,8 +450,9 @@
     </div>
 
     <div class="container">
-        <div style="text-align: right; font-size: 10px; color: #ccc; margin-bottom: -15px; padding-right: 40px;">v1.3</div>
-        
+        <div style="text-align: right; font-size: 10px; color: #ccc; margin-bottom: -15px; padding-right: 40px;">v1.3
+        </div>
+
         <!-- 햄버거 메뉴 -->
         <div class="menu-container">
             <button class="menu-button" onclick="toggleMenu(event)">
@@ -320,17 +474,37 @@
                 <div class="upload-icon">🎨</div>
                 <div class="upload-text">클릭하여 이미지를 업로드하거나 직접 그려보세요</div>
             </div>
-            
+
             <img id="preview-image" src="#" alt="Preview">
             <canvas id="input-canvas"></canvas>
             <canvas id="simulation-canvas"></canvas>
-            
+
             <button id="skip-button" onclick="skipSimulation()">스킵</button>
             <input type="file" id="file-input" accept="image/*">
+
+            <!-- 수정 도구 -->
+            <div id="edit-tools">
+                <button class="edit-tool-btn active" id="tool-pen" onclick="setEditTool('pen')" title="펜">✏️</button>
+                <div class="eraser-container">
+                    <button class="edit-tool-btn" id="tool-eraser" onclick="setEditTool('eraser')"
+                        title="지우개">🧽</button>
+                    <button class="eraser-more-btn" id="eraser-more" onclick="toggleEraserSizeMenu(event)"
+                        title="굵기 조절">></button>
+                    <div class="eraser-size-menu" id="eraser-size-menu">
+                        <button class="size-btn" onclick="setEraserSize(5, this)" title="얇게"><span
+                                class="dot dot-sm"></span></button>
+                        <button class="size-btn active" onclick="setEraserSize(15, this)" title="중간"><span
+                                class="dot dot-md"></span></button>
+                        <button class="size-btn" onclick="setEraserSize(30, this)" title="두껍게"><span
+                                class="dot dot-lg"></span></button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="button-group" id="button-group">
             <button class="btn-primary" id="btn-left" onclick="handleLeftBtn()">이미지 업로드</button>
+            <button class="btn-secondary" id="btn-middle" onclick="handleMiddleBtn()" style="display: none;">수정</button>
             <button class="btn-primary" id="btn-right" onclick="handleRightBtn()">직접 그리기</button>
         </div>
     </div>
@@ -342,28 +516,55 @@
         const inputCanvas = document.getElementById('input-canvas');
         const simCanvas = document.getElementById('simulation-canvas');
         const btnLeft = document.getElementById('btn-left');
+        const btnMiddle = document.getElementById('btn-middle');
         const btnRight = document.getElementById('btn-right');
         const menuDropdown = document.getElementById('menu-dropdown');
-        
+        const editTools = document.getElementById('edit-tools');
+        const toolPen = document.getElementById('tool-pen');
+        const toolEraser = document.getElementById('tool-eraser');
+        const eraserMoreBtn = document.getElementById('eraser-more');
+        const eraserSizeMenu = document.getElementById('eraser-size-menu');
+
         const inputCtx = inputCanvas.getContext('2d');
         const simCtx = simCanvas.getContext('2d');
 
-        let mode = 'idle'; // idle, uploaded, drawing, simulating
-        let lastInputMode = 'idle'; 
+        let mode = 'idle'; // idle, uploaded, drawing, simulating, editing
+        let lastInputMode = 'idle';
         let isDrawing = false;
         let animationId = null;
         let currentContours = null;
         let simData = null;
+        let activeTool = 'pen'; // 'pen' or 'eraser'
+        let activeContours = null; // 수정 중 벡터 데이터 라이브 렌더링용
+        let currentContour = null;
+        let currentEraseRadius = 15; // 기본 지우개 굵기 (중)
 
         // 메뉴 토글 함수
         function toggleMenu(e) {
             e.stopPropagation();
             menuDropdown.classList.toggle('show');
+            eraserSizeMenu.classList.remove('show');
+        }
+
+        // 지우개 굵기 메뉴 토글
+        function toggleEraserSizeMenu(e) {
+            e.stopPropagation();
+            eraserSizeMenu.classList.toggle('show');
+            menuDropdown.classList.remove('show');
+        }
+
+        // 지우개 굵기 설정
+        function setEraserSize(size, btnElem) {
+            currentEraseRadius = size;
+            document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
+            btnElem.classList.add('active');
+            eraserSizeMenu.classList.remove('show');
         }
 
         // 외부 클릭 시 메뉴 닫기
         window.addEventListener('click', () => {
             menuDropdown.classList.remove('show');
+            eraserSizeMenu.classList.remove('show');
         });
 
         // 서버 대기열 초기화 함수
@@ -372,7 +573,7 @@
 
             try {
                 const response = await fetch('/api/clear-task', { method: 'POST' });
-                
+
                 if (!response.ok) {
                     const errorMsg = await response.text();
                     throw new Error(`서버 응답 오류 (${response.status}): ${errorMsg}`);
@@ -396,7 +597,7 @@
             inputCanvas.height = workArea.offsetHeight;
             simCanvas.width = workArea.offsetWidth;
             simCanvas.height = workArea.offsetHeight;
-            
+
             inputCtx.lineCap = 'round';
             inputCtx.lineJoin = 'round';
             inputCtx.lineWidth = 3;
@@ -410,7 +611,7 @@
         workArea.addEventListener('click', (e) => {
             // 스킵 버튼을 클릭한 경우 등 다른 요소의 이벤트를 방해하지 않기 위해 확인
             if (e.target.closest('#skip-button')) return;
-            
+
             if (mode === 'idle' || mode === 'uploaded') {
                 fileInput.click();
             }
@@ -430,51 +631,153 @@
         function getTouchPos(touchEvent) {
             const rect = inputCanvas.getBoundingClientRect();
             return {
-                x: touchEvent.touches[0].clientX - rect.left,
-                y: touchEvent.touches[0].clientY - rect.top
+                x: (touchEvent.touches[0].clientX - rect.left) * (inputCanvas.width / rect.width),
+                y: (touchEvent.touches[0].clientY - rect.top) * (inputCanvas.height / rect.height)
+            };
+        }
+
+        function getMousePos(e) {
+            const rect = inputCanvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - rect.left) * (inputCanvas.width / rect.width),
+                y: (e.clientY - rect.top) * (inputCanvas.height / rect.height)
+            };
+        }
+
+        function toSimCoords(x, y) {
+            const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
+            const offsetX = (simCanvas.width - simData.width * scale) / 2;
+            const offsetY = (simCanvas.height - simData.height * scale) / 2;
+            return {
+                x: (x - offsetX) / scale,
+                y: (y - offsetY) / scale
             };
         }
 
         function handleTouchStart(e) {
-            if (mode !== 'drawing') return;
+            if (mode !== 'drawing' && mode !== 'editing') return;
             e.preventDefault();
             const pos = getTouchPos(e);
-            isDrawing = true;
-            inputCtx.beginPath();
-            inputCtx.moveTo(pos.x, pos.y);
+            startDrawingAt(pos.x, pos.y);
         }
 
         function handleTouchMove(e) {
-            if (!isDrawing || mode !== 'drawing') return;
+            if (!isDrawing || (mode !== 'drawing' && mode !== 'editing')) return;
             e.preventDefault();
             const pos = getTouchPos(e);
-            inputCtx.lineTo(pos.x, pos.y);
-            inputCtx.stroke();
+            drawTo(pos.x, pos.y);
         }
 
         function startDrawing(e) {
-            if (mode !== 'drawing') return;
-            isDrawing = true;
-            inputCtx.beginPath();
-            inputCtx.moveTo(e.offsetX, e.offsetY);
+            if (mode !== 'drawing' && mode !== 'editing') return;
+            const pos = getMousePos(e);
+            startDrawingAt(pos.x, pos.y);
         }
 
         function draw(e) {
             if (!isDrawing) return;
-            inputCtx.lineTo(e.offsetX, e.offsetY);
-            inputCtx.stroke();
+            const pos = getMousePos(e);
+            drawTo(pos.x, pos.y);
+        }
+
+        function startDrawingAt(x, y) {
+            isDrawing = true;
+
+            if (mode === 'editing') {
+                const pos = toSimCoords(x, y);
+                if (activeTool === 'pen') {
+                    currentContour = [pos];
+                    activeContours.push(currentContour);
+
+                    inputCtx.beginPath();
+                    inputCtx.moveTo(x, y);
+                    inputCtx.strokeStyle = "#4a90e2"; // 수정 시뮬레이션 색상
+                    inputCtx.lineWidth = 2; // 화면 출력 굵기
+                    inputCtx.lineCap = 'round';
+                    inputCtx.lineJoin = 'round';
+                } else if (activeTool === 'eraser') {
+                    eraseAt(pos);
+                }
+            } else {
+                inputCtx.beginPath();
+                inputCtx.moveTo(x, y);
+                if (activeTool === 'eraser') {
+                    inputCtx.globalCompositeOperation = 'destination-out';
+                    inputCtx.lineWidth = currentEraseRadius * 2; // 지우개 크기 동기화
+                } else {
+                    inputCtx.globalCompositeOperation = 'source-over';
+                    inputCtx.lineWidth = 3; // 기본 직접 그리기 굵기 축소 (5 -> 3)
+                }
+            }
+        }
+
+        function drawTo(x, y) {
+            if (mode === 'editing') {
+                const pos = toSimCoords(x, y);
+                if (activeTool === 'pen' && currentContour) {
+                    currentContour.push(pos);
+                    inputCtx.lineTo(x, y);
+                    inputCtx.stroke();
+                } else if (activeTool === 'eraser') {
+                    eraseAt(pos);
+                }
+            } else {
+                inputCtx.lineTo(x, y);
+                inputCtx.stroke();
+            }
+        }
+
+        function eraseAt(pos) {
+            const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
+            const eraseRadius = currentEraseRadius / scale; // 동적 지우개 반경
+
+            let newContours = [];
+            let erased = false;
+
+            for (let contour of activeContours) {
+                let currentChunk = [];
+                for (let pt of contour) {
+                    let d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+                    if (d > eraseRadius) {
+                        currentChunk.push(pt);
+                    } else {
+                        erased = true;
+                        if (currentChunk.length > 0) {
+                            newContours.push(currentChunk);
+                            currentChunk = [];
+                        }
+                    }
+                }
+                if (currentChunk.length > 0) {
+                    newContours.push(currentChunk);
+                }
+            }
+            if (erased) {
+                activeContours = newContours;
+                renderContours(activeContours, simCtx);
+            }
         }
 
         function stopDrawing() {
             isDrawing = false;
+            if (mode === 'editing' && activeTool === 'pen' && currentContour && currentContour.length < 2) {
+                activeContours.pop(); // 너무 짧은 점 제거
+            }
+            if (mode === 'editing') {
+                // 그린 내용을 시뮬레이션 캔버스에 합치고 inputCanvas 초기화
+                renderContours(activeContours, simCtx);
+                inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+            } else {
+                inputCtx.globalCompositeOperation = 'source-over';
+            }
         }
 
         // 파일 선택 시 이벤트 처리
-        fileInput.addEventListener('change', function() {
+        fileInput.addEventListener('change', function () {
             const file = this.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     previewImage.src = e.target.result;
                     lastInputMode = 'uploaded';
                     // 파일 선택 즉시 서버로 전송하여 처리 및 시뮬레이션 시작
@@ -487,10 +790,11 @@
         function setMode(newMode) {
             mode = newMode;
             workArea.className = 'work-area';
-            
+
             if (mode === 'idle') {
                 btnLeft.textContent = '이미지 업로드';
                 btnLeft.className = 'btn-primary';
+                btnMiddle.style.display = 'none';
                 btnRight.textContent = '직접 그리기';
                 btnRight.className = 'btn-primary';
                 previewImage.src = '#';
@@ -499,39 +803,67 @@
                 fileInput.value = '';
                 simData = null;
                 lastInputMode = 'idle';
-            } 
+                editTools.style.display = 'none';
+            }
             else if (mode === 'uploaded') {
                 workArea.classList.add('has-image');
                 btnLeft.textContent = '이미지 변경';
                 btnLeft.className = 'btn-secondary';
+                btnMiddle.style.display = 'none';
                 btnRight.textContent = '취소';
                 btnRight.className = 'btn-danger';
-            } 
+                editTools.style.display = 'none';
+            }
             else if (mode === 'drawing') {
                 workArea.classList.add('drawing');
                 btnLeft.textContent = '취소';
                 btnLeft.className = 'btn-danger';
+                btnMiddle.style.display = 'none';
                 btnRight.textContent = '확인';
                 btnRight.className = 'btn-primary';
                 lastInputMode = 'drawing';
+                editTools.style.display = 'flex'; // 직접 그리기 모드에서도 수정 도구 표시
+                setEditTool('pen');
             }
             else if (mode === 'simulating') {
                 workArea.classList.add('simulating');
                 if (previewImage.src !== '#') workArea.classList.add('has-image');
-                
+
                 btnLeft.textContent = '취소';
                 btnLeft.className = 'btn-danger';
-                btnRight.textContent = '전송'; // 업로드 -> 전송으로 이름 변경
+                btnMiddle.style.display = 'inline-block';
+                btnMiddle.textContent = '수정';
+                btnMiddle.className = 'btn-secondary';
+                btnRight.textContent = '전송';
                 btnRight.className = 'btn-primary';
+                editTools.style.display = 'none';
+            }
+            else if (mode === 'editing') {
+                workArea.classList.add('editing');
+                if (previewImage.src !== '#') workArea.classList.add('has-image');
+
+                btnLeft.textContent = '취소';
+                btnLeft.className = 'btn-danger';
+                btnMiddle.style.display = 'none';
+                btnRight.textContent = '완료';
+                btnRight.className = 'btn-primary';
+                editTools.style.display = 'flex';
+                setEditTool('pen');
             }
         }
 
         function handleLeftBtn() {
             if (mode === 'idle' || mode === 'uploaded') {
                 fileInput.click();
-            } else if (mode === 'drawing' || mode === 'simulating') {
+            } else if (mode === 'drawing' || mode === 'simulating' || mode === 'editing') {
                 cancelSimulation();
                 setMode('idle');
+            }
+        }
+
+        function handleMiddleBtn() {
+            if (mode === 'simulating') {
+                startEditing();
             }
         }
 
@@ -542,8 +874,102 @@
                 setMode('idle');
             } else if (mode === 'drawing') {
                 confirmDrawing();
+            } else if (mode === 'editing') {
+                confirmEditing();
             } else if (mode === 'simulating') {
                 uploadToQueue(); // 서버 대기열로 전송
+            }
+        }
+
+        function setEditTool(tool) {
+            activeTool = tool;
+            toolPen.classList.toggle('active', tool === 'pen');
+            toolEraser.classList.toggle('active', tool === 'eraser');
+
+            if (tool === 'eraser') {
+                eraserMoreBtn.style.display = 'block';
+            } else {
+                eraserMoreBtn.style.display = 'none';
+                eraserSizeMenu.classList.remove('show');
+            }
+        }
+
+        function renderContours(contours, ctx) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            if (!simData) return;
+            const scale = Math.min(ctx.canvas.width / simData.width, ctx.canvas.height / simData.height);
+            const offsetX = (ctx.canvas.width - simData.width * scale) / 2;
+            const offsetY = (ctx.canvas.height - simData.height * scale) / 2;
+
+            ctx.strokeStyle = "#4a90e2";
+            ctx.lineWidth = 2; // 출력 굵기 고정
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            contours.forEach(contour => {
+                if (!contour || contour.length === 0) return;
+                ctx.beginPath();
+                ctx.moveTo(contour[0].x * scale + offsetX, contour[0].y * scale + offsetY);
+                for (let i = 1; i < contour.length; i++) {
+                    ctx.lineTo(contour[i].x * scale + offsetX, contour[i].y * scale + offsetY);
+                }
+                ctx.stroke();
+            });
+        }
+
+        function startEditing() {
+            if (!simData) return;
+            if (animationId) skipSimulation();
+
+            // 1. 현재 벡터 데이터를 딥카피하여 수정용 배열로 준비
+            activeContours = JSON.parse(JSON.stringify(simData.contours));
+
+            // 2. 화면 초기화 후 현재 벡터 렌더링
+            inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+            renderContours(activeContours, simCtx);
+
+            setMode('editing');
+        }
+
+        async function confirmEditing() {
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '30%';
+
+            // 길이가 2 미만인 점들은 무시
+            simData.contours = activeContours.filter(c => c.length > 1);
+
+            try {
+                // 이미지를 다시 보내지 않고, 수정된 벡터 데이터를 통해 G-Code만 업데이트
+                const response = await fetch('/api/update-gcode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        width: simData.width,
+                        height: simData.height,
+                        contours: simData.contours
+                    })
+                });
+
+                const result = await response.json();
+                progressBar.style.width = '100%';
+
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 500);
+
+                if (result.status === 'success') {
+                    simData.gcode = result.gcode;
+                    inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+                    setMode('simulating');
+                    skipSimulation(); // 결과 즉시 표시
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (err) {
+                progressContainer.style.display = 'none';
+                alert("수정 업데이트 실패: " + err.message);
             }
         }
 
@@ -561,20 +987,20 @@
             try {
                 const response = await fetch('/api/push-task', {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({ gcode: simData.gcode })
                 });
-                
+
                 if (!response.ok) {
                     const errorDetail = await response.text();
                     throw new Error(`HTTP ${response.status}: ${errorDetail}`);
                 }
 
                 const result = await response.json();
-                
+
                 if (result.status === 'success') {
                     progressBar.style.width = '100%';
                     setTimeout(() => {
@@ -598,11 +1024,11 @@
             tempCanvas.width = inputCanvas.width;
             tempCanvas.height = inputCanvas.height;
             const tempCtx = tempCanvas.getContext('2d');
-            
+
             tempCtx.fillStyle = '#ffffff';
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(inputCanvas, 0, 0);
-            
+
             const dataUrl = tempCanvas.toDataURL('image/jpeg');
             const blob = await (await fetch(dataUrl)).blob();
             processImage(blob, true); // 직접 그리기 모드임을 알림
@@ -611,7 +1037,7 @@
         async function processImage(imageBlob, isDrawing = false) {
             const progressContainer = document.getElementById('progress-container');
             const progressBar = document.getElementById('progress-bar');
-            
+
             // 프로그레스 바 시작
             progressContainer.style.display = 'block';
             progressBar.style.width = '10%';
@@ -624,7 +1050,7 @@
                 const formData = new FormData();
                 formData.append('file', optimizedBlob, 'image.jpg');
                 formData.append('is_drawing', isDrawing);
-                
+
                 // 가짜 프로그레스 애니메이션
                 let progress = 30;
                 const progressInterval = setInterval(() => {
@@ -639,10 +1065,10 @@
                     body: formData
                 });
                 const data = await response.json();
-                
+
                 clearInterval(progressInterval);
                 progressBar.style.width = '100%';
-                
+
                 setTimeout(() => {
                     progressContainer.style.display = 'none';
                 }, 500);
@@ -706,12 +1132,12 @@
         function startSimulation(data) {
             setMode('simulating');
             if (animationId) cancelAnimationFrame(animationId);
-            
+
             document.getElementById('skip-button').style.display = 'block'; // 시뮬레이션 시작 시 버튼 표시
 
             simCanvas.width = workArea.offsetWidth;
             simCanvas.height = workArea.offsetHeight;
-            
+
             // 비율 계산
             const scale = Math.min(simCanvas.width / data.width, simCanvas.height / data.height);
             const offsetX = (simCanvas.width - data.width * scale) / 2;
@@ -722,7 +1148,7 @@
             simCtx.lineWidth = (lastInputMode === 'drawing') ? 5 : 2; // 그리기 모드였으면 2배 굵게
             simCtx.lineCap = 'round';
             simCtx.lineJoin = 'round';
-            
+
             let contourIdx = 0;
             let pointIdx = 0;
             const speed = 15; // 그리기 속도 조절
@@ -738,7 +1164,7 @@
 
                 for (let i = 0; i < speed; i++) {
                     if (contourIdx >= data.contours.length) break;
-                    
+
                     const contour = data.contours[contourIdx];
                     if (pointIdx === 0) {
                         simCtx.beginPath();

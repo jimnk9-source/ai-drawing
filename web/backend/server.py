@@ -16,6 +16,11 @@ app = FastAPI()
 class DrawingTask(BaseModel):
     gcode: str
 
+class ContoursData(BaseModel):
+    width: int
+    height: int
+    contours: list
+
 # 임시 데이터 저장소
 drawing_queue = {
     "task_id": 0,
@@ -98,6 +103,14 @@ async def push_task(task: DrawingTask):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.post("/api/update-gcode")
+async def update_gcode(data: ContoursData):
+    try:
+        gcode = generate_gcode(data.contours, data.width, data.height)
+        return {"status": "success", "gcode": gcode}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/api/get-task")
 async def get_task():
     global drawing_queue
@@ -117,16 +130,25 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
 
         h, w = img.shape[:2]
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        gray_clahe = clahe.apply(gray)
-        blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
-        edged = cv2.Canny(blurred, 50, 150) 
-        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
-        combined_edges = cv2.bitwise_or(edged, thresh)
+        
+        if is_drawing_bool:
+            # 직접 그린 그림이나 수정된 그림의 경우: 단순 이진화로 선의 형태를 최대한 보존
+            # Canny나 AdaptiveThreshold를 쓰면 선의 안팎이 다 따져서 이중으로 그려질 수 있음
+            _, combined_edges = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
+        else:
+            # 일반 사진의 경우: 기존 AI 드로잉 스타일(Canny + Adaptive) 적용
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            gray_clahe = clahe.apply(gray)
+            blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
+            edged = cv2.Canny(blurred, 50, 150) 
+            thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
+            combined_edges = cv2.bitwise_or(edged, thresh)
+
         contours, _ = cv2.findContours(combined_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
         
         raw_contours = []
         if not is_drawing_bool:
+            # (사진용) 어두운 영역 채우기 로직 유지
             _, black_mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)
             black_cnts, _ = cv2.findContours(black_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for cnt in black_cnts:
@@ -145,10 +167,15 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                                 line_points = []
                         if len(line_points) > 1: raw_contours.append(line_points)
             
+        # 외곽선 데이터화
         for cnt in contours:
             length = cv2.arcLength(cnt, True)
             area = cv2.contourArea(cnt)
-            if length >= 5 and area > 5: 
+            # 너무 작은 점들은 무시하되, 직접 그리기일 때는 더 민감하게 반응하도록 함
+            min_len = 2 if is_drawing_bool else 5
+            min_area = 1 if is_drawing_bool else 5
+            
+            if length >= min_len and area > min_area: 
                 epsilon = 0.001 * length 
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 points = [{"x": int(p[0][0]), "y": int(p[0][1])} for p in approx]
@@ -183,4 +210,11 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    import sys
+    import os
+    # 실행 시 상위 폴더(web 폴더 상위)도 인식할 수 있도록 경로 추가
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    
+    # 코드 수정 시 자동으로 서버가 재시작되도록 reload=True 옵션 추가
+    # python web/backend/server.py 로 실행 시 현재 파일이 server.py 이므로 "server:app" 사용
+    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
