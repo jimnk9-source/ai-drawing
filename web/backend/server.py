@@ -37,6 +37,13 @@ if not os.path.exists(FRONTEND_DIR):
 load_dotenv()
 
 # --- G-Code 생성 로직 (하드웨어 최적화 버전) ---
+# [수정] 펜 업/다운 명령을 표준 G-code 관례에 맞춰 통일:
+#   M3 = Pen Down (펜 내림)
+#   M5 = Pen Up   (펜 올림)
+# ESP32 펌웨어의 processGCodeLine()이 "M3"이면 무조건 penDown(),
+# "M5"이면 무조건 penUp()을 호출하므로 (S 파라미터는 읽지 않음),
+# 기존처럼 "M3 S30"/"M3 S10"으로만 구분하면 둘 다 penDown()으로 처리되어
+# 펜이 올라가야 할 때도 올라가지 않는 버그가 있었습니다.
 
 def generate_gcode(contours, img_w, img_h):
     # A4 종이 너비(210mm) 기준, 여백 제외 약 180mm로 스케일링
@@ -46,7 +53,7 @@ def generate_gcode(contours, img_w, img_h):
     gcode = [
         "G21 ; Set units to mm",
         "G90 ; Absolute positioning",
-        "M3 S30 ; Pen Up",
+        "M5 ; Pen Up",
         "G4 P150 ; Wait for servo",
         "F2000 ; Set default speed"
     ]
@@ -60,7 +67,7 @@ def generate_gcode(contours, img_w, img_h):
         gcode.append(f"G0 X{start_x} Y{start_y}")
         
         # 2. 펜 내리기
-        gcode.append("M3 S10 ; Pen Down")
+        gcode.append("M3 ; Pen Down")
         gcode.append("G4 P150 ; Wait for servo")
         
         # 3. 경로 따라 그리기
@@ -70,7 +77,7 @@ def generate_gcode(contours, img_w, img_h):
             gcode.append(f"G1 X{x_mm} Y{y_mm} F1500")
             
         # 4. 펜 올리기 (패스 끝)
-        gcode.append("M3 S30 ; Pen Up")
+        gcode.append("M5 ; Pen Up")
         gcode.append("G4 P150 ; Wait for servo")
         
     gcode.append("G0 X0 Y0 ; Return to home")
