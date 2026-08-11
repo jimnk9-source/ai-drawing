@@ -1,7 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
-import google.generativeai as genai
 import os
 import cv2
 import numpy as np
@@ -11,46 +10,34 @@ from typing import Optional
 
 app = FastAPI()
 
-# 1. 경로 설정
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(BASE_DIR, "../web/frontend")
-
-# 환경변수 로드
-load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
-
 # 데이터 모델 정의
 class DrawingTask(BaseModel):
     gcode: str
+    contours: Optional[list] = None
 
-# 임시 데이터 저장소 (Vercel 서버리스 특성상 초기화될 수 있음)
-drawing_queue = {
-    "task_id": 0,
-    "gcode": "",
-    "status": "idle"
-}
+class ContoursData(BaseModel):
+    width: int
+    height: int
+    contours: list
 
-@app.get("/")
-async def read_index():
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+class ClearRequest(BaseModel):
+    saved_ids: list[int]
 
-@app.get("/api/health")
-async def health_check():
-    return {"status": "ok"}
+# 임시 데이터 저장소 (다중 큐 및 히스토리 관리)
+tasks_db = []
+task_counter = 0
 
-# --- G-Code 생성 로직 (하드웨어 최적화 버전) ---
-# [수정] 펜 업/다운 명령을 표준 G-code 관례에 맞춰 통일:
-#   M3 = Pen Down (펜 내림)
-#   M5 = Pen Up   (펜 올림)
-# ESP32 펌웨어의 processGCodeLine()이 "M3"이면 무조건 penDown(),
-# "M5"이면 무조건 penUp()을 호출하므로 (S 파라미터는 읽지 않음),
-# 기존처럼 "M3 S30"/"M3 S10"으로만 구분하면 둘 다 penDown()으로 처리되어
-# 펜이 올라가야 할 때도 올라가지 않는 버그가 있었습니다.
+# 경로 설정 (Vercel 배포 환경 고려)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "../web/frontend")
+if not os.path.exists(FRONTEND_DIR):
+    FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
+if not os.path.exists(FRONTEND_DIR):
+    FRONTEND_DIR = os.path.join(BASE_DIR, "../../web/frontend")
+
+load_dotenv()
 
 def generate_gcode(contours, img_w, img_h):
-    # A4 종이 너비(210mm) 기준, 여백 제외 약 180mm로 스케일링
     target_width_mm = 180.0
     scale = target_width_mm / img_w
     
@@ -64,58 +51,91 @@ def generate_gcode(contours, img_w, img_h):
     
     for path in contours:
         if not path: continue
-        
-        # 1. 시작점으로 이동 (Pen Up 상태)
         start_x = round(path[0]['x'] * scale, 2)
-        start_y = round((img_h - path[0]['y']) * scale, 2) # Y축 반전
+        start_y = round((img_h - path[0]['y']) * scale, 2)
         gcode.append(f"G0 X{start_x} Y{start_y}")
-        
-        # 2. 펜 내리기
         gcode.append("M3 ; Pen Down")
         gcode.append("G4 P150 ; Wait for servo")
         
-        # 3. 경로 따라 그리기
         for p in path:
             x_mm = round(p['x'] * scale, 2)
-            y_mm = round((img_h - p['y']) * scale, 2) # Y축 반전
+            y_mm = round((img_h - p['y']) * scale, 2)
             gcode.append(f"G1 X{x_mm} Y{y_mm} F1500")
             
-        # 4. 펜 올리기 (패스 끝)
         gcode.append("M5 ; Pen Up")
         gcode.append("G4 P150 ; Wait for servo")
         
     gcode.append("G0 X0 Y0 ; Return to home")
     return "\n".join(gcode)
 
-# --- API 정의 ---
+@app.get("/")
+async def read_index():
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return JSONResponse(status_code=404, content={"detail": "index.html을 찾을 수 없습니다."})
 
 @app.post("/api/clear-task")
-async def clear_task():
-    global drawing_queue
+async def clear_task(req: ClearRequest):
+    global tasks_db
     try:
-        drawing_queue = {"task_id": 0, "gcode": "", "status": "idle"}
-        return JSONResponse(content={"status": "success", "message": "모든 G-Code 데이터가 삭제되었습니다."})
+        tasks_db = [t for t in tasks_db if t["task_id"] in req.saved_ids or t["status"] == "drawing"]
+        return JSONResponse(content={"status": "success", "message": "저장된 데이터를 제외하고 모든 G-Code가 삭제되었습니다."})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.post("/api/push-task")
 async def push_task(task: DrawingTask):
-    global drawing_queue
+    global tasks_db, task_counter
     try:
-        drawing_queue["gcode"] = task.gcode
-        drawing_queue["task_id"] += 1
-        drawing_queue["status"] = "pending"
-        return {"status": "success", "task_id": drawing_queue["task_id"]}
+        task_counter += 1
+        new_task = {
+            "task_id": task_counter,
+            "gcode": task.gcode,
+            "contours": task.contours or [],
+            "status": "pending"
+        }
+        tasks_db.append(new_task)
+        return {"status": "success", "task_id": task_counter}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/update-gcode")
+async def update_gcode(data: ContoursData):
+    try:
+        gcode = generate_gcode(data.contours, data.width, data.height)
+        return {"status": "success", "gcode": gcode}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/get-task")
 async def get_task():
-    global drawing_queue
-    if drawing_queue["status"] == "pending":
-        drawing_queue["status"] = "idle"
-        return {"task_id": drawing_queue["task_id"], "gcode": drawing_queue["gcode"]}
+    global tasks_db
+    for task in tasks_db:
+        if task["status"] == "pending":
+            task["status"] = "drawing"
+            return {"task_id": task["task_id"], "gcode": task["gcode"]}
     return {"task_id": 0, "gcode": ""}
+
+@app.post("/api/complete-task")
+async def complete_task(task_id: int):
+    global tasks_db
+    for task in tasks_db:
+        if task["task_id"] == task_id:
+            task["status"] = "complete"
+            return {"status": "success", "message": f"Task {task_id} completed"}
+    return JSONResponse(status_code=404, content={"status": "error", "message": "태스크를 찾을 수 없습니다."})
+
+@app.get("/api/tasks-status")
+async def get_tasks_status():
+    global tasks_db
+    return [
+        {
+            "task_id": t["task_id"],
+            "contours": t["contours"],
+            "status": t["status"]
+        } for t in tasks_db
+    ]
 
 @app.post("/api/process-image")
 async def process_image(file: UploadFile = File(...), is_drawing: str = Form("false")):
@@ -128,38 +148,27 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
 
         h, w = img.shape[:2]
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        gray_clahe = clahe.apply(gray)
-        blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
-        edged = cv2.Canny(blurred, 50, 150) 
-        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
-        combined_edges = cv2.bitwise_or(edged, thresh)
-        contours, _ = cv2.findContours(combined_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
         
+        if is_drawing_bool:
+            _, combined_edges = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
+        else:
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            gray_clahe = clahe.apply(gray)
+            blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
+            edged = cv2.Canny(blurred, 50, 150) 
+            thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
+            combined_edges = cv2.bitwise_or(edged, thresh)
+
+        contours, _ = cv2.findContours(combined_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
         raw_contours = []
-        if not is_drawing_bool:
-            _, black_mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)
-            black_cnts, _ = cv2.findContours(black_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for cnt in black_cnts:
-                area = cv2.contourArea(cnt)
-                if area > 2500 and area < (h * w * 0.1):
-                    spacing = 8
-                    mask = np.zeros_like(gray)
-                    cv2.drawContours(mask, [cnt], -1, 255, -1)
-                    for d in range(-h, w, spacing):
-                        line_points = []
-                        for x in range(max(0, d), min(w, h + d)):
-                            y = x - d
-                            if mask[y, x] > 0: line_points.append({"x": x, "y": y})
-                            else:
-                                if len(line_points) > 1: raw_contours.append(line_points)
-                                line_points = []
-                        if len(line_points) > 1: raw_contours.append(line_points)
-            
+        
         for cnt in contours:
             length = cv2.arcLength(cnt, True)
             area = cv2.contourArea(cnt)
-            if length >= 5 and area > 5: 
+            min_len = 2 if is_drawing_bool else 5
+            min_area = 1 if is_drawing_bool else 5
+            
+            if length >= min_len and area > min_area: 
                 epsilon = 0.001 * length 
                 approx = cv2.approxPolyDP(cnt, epsilon, True)
                 points = [{"x": int(p[0][0]), "y": int(p[0][1])} for p in approx]
