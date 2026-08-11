@@ -102,6 +102,10 @@
             display: block;
         }
 
+        .work-area.drawing #simulation-canvas {
+            display: block;
+        }
+
         .work-area.drawing .center-msg {
             display: none;
         }
@@ -249,10 +253,12 @@
             right: 0;
             background: white;
             border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            padding: 10px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15);
+            padding: 15px;
             display: none;
-            width: 220px;
+            width: 320px;
+            max-height: 500px;
+            overflow-y: auto;
             text-align: left;
         }
 
@@ -461,8 +467,25 @@
                 <span></span>
             </button>
             <div class="menu-dropdown" id="menu-dropdown">
-                <div class="menu-item danger" onclick="clearServerQueue()">
-                    🗑️ 모든 G-Code 삭제하기
+                <h3
+                    style="margin: 0 0 10px 0; font-size: 1rem; border-bottom: 2px solid var(--border-color); padding-bottom: 5px; color: var(--primary-color);">
+                    📈 실시간 출력 현황</h3>
+                <div id="status-task-list"
+                    style="margin-bottom: 15px; font-size: 0.85rem; max-height: 180px; overflow-y: auto;">
+                    <div style="color: var(--secondary-color); text-align: center; padding: 10px 0;">전송된 작업이 없습니다</div>
+                </div>
+
+                <h3
+                    style="margin: 15px 0 10px 0; font-size: 1rem; border-bottom: 2px solid var(--border-color); padding-bottom: 5px; color: var(--primary-color);">
+                    ⭐ 보관된 그림 목록</h3>
+                <div id="saved-task-list"
+                    style="margin-bottom: 15px; font-size: 0.85rem; max-height: 180px; overflow-y: auto;">
+                    <div style="color: var(--secondary-color); text-align: center; padding: 10px 0;">보관된 그림이 없습니다</div>
+                </div>
+
+                <div class="menu-item danger" onclick="clearServerQueue()"
+                    style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; justify-content: center; font-weight: bold;">
+                    🗑️ G-Code 대기열 비우기
                 </div>
             </div>
         </div>
@@ -539,11 +562,267 @@
         let currentContour = null;
         let currentEraseRadius = 15; // 기본 지우개 굵기 (중)
 
+        // 삼선 메뉴 갱신용 폴링 타이머
+        let statusPollInterval = null;
+
+        // 로컬 보관 목록 불러오기
+        function getLocalSavedDrawings() {
+            const data = localStorage.getItem('vico_saved_drawings');
+            return data ? JSON.parse(data) : [];
+        }
+
+        // 로컬 보관 목록 저장하기
+        function saveLocalSavedDrawings(list) {
+            localStorage.setItem('vico_saved_drawings', JSON.stringify(list));
+        }
+
+        // 실시간 대기열에서 로컬 보관 목록으로 복제/저장
+        function saveTaskToLocal(event, taskId, contourDataString) {
+            event.stopPropagation(); // 버블링 차단 - 메뉴 닫힘 방지
+            try {
+                const contours = JSON.parse(decodeURIComponent(contourDataString));
+                const list = getLocalSavedDrawings();
+
+                const exists = list.some(item => item.server_task_id === taskId);
+                if (exists) return; // 이미 있으면 경유
+
+                list.push({
+                    id: Date.now(),
+                    server_task_id: taskId,
+                    contours: contours,
+                    width: simData ? simData.width : simCanvas.width,
+                    height: simData ? simData.height : simCanvas.height
+                });
+
+                saveLocalSavedDrawings(list);
+                renderSavedList();
+                fetchTasksStatus(); // 별표 아이콘 동기화
+            } catch (e) {
+                console.error("Save to Local Error:", e);
+            }
+        }
+
+        // 서버 task_id 기준 보관 해제
+        function unsaveTaskFromServer(event, taskId) {
+            event.stopPropagation(); // 버블링 차단 - 메뉴 닫힘 방지
+            const list = getLocalSavedDrawings();
+            const newList = list.filter(item => item.server_task_id !== taskId);
+            saveLocalSavedDrawings(newList);
+            renderSavedList();
+            fetchTasksStatus(); // 별표 아이콘 동기화
+        }
+
+
+        // 보관함에 속한 그림 삭제
+        function removeLocalSaved(id) {
+            if (!confirm("보관함에서 이 그림을 삭제하시겠습니까?")) return;
+            const list = getLocalSavedDrawings();
+            const newList = list.filter(item => item.id !== id);
+            saveLocalSavedDrawings(newList);
+            renderSavedList();
+        }
+
+        // 보관함에 속한 그림 재전송(재출력)
+        async function republishSaved(id) {
+            const list = getLocalSavedDrawings();
+            const item = list.find(d => d.id === id);
+            if (!item) return;
+
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '30%';
+
+            try {
+                const gcodeResponse = await fetch('/api/update-gcode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        width: item.width,
+                        height: item.height,
+                        contours: item.contours
+                    })
+                });
+                const gcodeResult = await gcodeResponse.json();
+                if (gcodeResult.status !== 'success') throw new Error(gcodeResult.message);
+
+                progressBar.style.width = '60%';
+
+                const response = await fetch('/api/push-task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        gcode: gcodeResult.gcode,
+                        contours: item.contours
+                    })
+                });
+                const result = await response.json();
+                progressBar.style.width = '100%';
+
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 500);
+
+                if (result.status === 'success') {
+                    alert("그림 재출력 대기열 전송이 완료되었습니다! (Task ID: " + result.task_id + ")");
+                    fetchTasksStatus();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (err) {
+                progressContainer.style.display = 'none';
+                alert("재출력 요청 실패: " + err.message);
+            }
+        }
+
+        // 보관함 목록 렌더링
+        function renderSavedList() {
+            const container = document.getElementById('saved-task-list');
+            const list = getLocalSavedDrawings();
+
+            if (list.length === 0) {
+                container.innerHTML = `<div style="color: var(--secondary-color); text-align: center; padding: 10px 0;">보관된 그림이 없습니다</div>`;
+                return;
+            }
+
+            container.innerHTML = list.map(item => {
+                return `
+                    <div class="saved-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 5px; border-bottom: 1px dashed #eee;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <canvas class="thumb-canvas-saved-${item.id}" width="40" height="30" style="border: 1px solid #ddd; background: #fff; border-radius: 4px; display: block; position: static;"></canvas>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <button onclick="republishSaved(${item.id})" style="padding: 4px 8px; min-width: auto; font-size: 11px; background: var(--primary-color); color: #fff; cursor: pointer; border-radius: 4px; border: none; font-weight: bold;">🖨️ 출력</button>
+                            <button onclick="removeLocalSaved(${item.id})" style="padding: 4px 8px; min-width: auto; font-size: 11px; background: var(--danger-color); color: #fff; cursor: pointer; border-radius: 4px; border: none; font-weight: bold;">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            setTimeout(() => {
+                list.forEach(item => {
+                    const canvas = document.querySelector(`.thumb-canvas-saved-${item.id}`);
+                    if (canvas) {
+                        drawThumb(canvas, item.contours, item.width, item.height);
+                    }
+                });
+            }, 50);
+        }
+
+        // 미니 썸네일 드로잉
+        function drawThumb(canvas, contours, w, h) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!contours || contours.length === 0) return;
+
+            const scale = Math.min(canvas.width / w, canvas.height / h);
+            const offsetX = (canvas.width - w * scale) / 2;
+            const offsetY = (canvas.height - h * scale) / 2;
+
+            ctx.strokeStyle = "#4a90e2";
+            ctx.lineWidth = 1;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            contours.forEach(contour => {
+                if (!contour || contour.length === 0) return;
+                ctx.beginPath();
+                ctx.moveTo(contour[0].x * scale + offsetX, contour[0].y * scale + offsetY);
+                for (let i = 1; i < contour.length; i++) {
+                    ctx.lineTo(contour[i].x * scale + offsetX, contour[i].y * scale + offsetY);
+                }
+                ctx.stroke();
+            });
+        }
+
+        // 서버 대기열 현황 조회 수집
+        async function fetchTasksStatus() {
+            try {
+                const response = await fetch('/api/tasks-status');
+                const tasks = await response.json();
+                renderStatusList(tasks);
+            } catch (e) {
+                console.error("Fetch Status Error:", e);
+            }
+        }
+
+        // 실시간 상태 목록 렌더링
+        function renderStatusList(tasks) {
+            const container = document.getElementById('status-task-list');
+            if (tasks.length === 0) {
+                container.innerHTML = `<div style="color: var(--secondary-color); text-align: center; padding: 10px 0;">전송된 작업이 없습니다</div>`;
+                return;
+            }
+
+            const savedList = getLocalSavedDrawings();
+
+            container.innerHTML = tasks.map(task => {
+                let badgeHtml = '';
+                if (task.status === 'pending') {
+                    badgeHtml = `<span class="status-badge" style="background: #fffbe6; color: #d4b106; padding: 2px 6px; border-radius: 4px; border: 1px solid #ffe58f; font-size: 11px; font-weight: bold; white-space: nowrap;">대기 중</span>`;
+                } else if (task.status === 'drawing') {
+                    badgeHtml = `<span class="status-badge" style="background: #e6f7ff; color: #1890ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #91d5ff; font-size: 11px; font-weight: bold; white-space: nowrap;">출력 중</span>`;
+                } else if (task.status === 'complete') {
+                    badgeHtml = `<span class="status-badge" style="background: #f6ffed; color: #52c41a; padding: 2px 6px; border-radius: 4px; border: 1px solid #b7eb8f; font-size: 11px; font-weight: bold; white-space: nowrap;">출력 완료</span>`;
+                }
+
+                const encodedContour = encodeURIComponent(JSON.stringify(task.contours));
+                const isSaved = savedList.some(item => item.server_task_id === task.task_id);
+                const starIcon = isSaved ? '⭐' : '☆';
+                const starColor = isSaved ? '#ffc107' : '#aaa';
+                const starCursor = 'pointer';
+                const starAction = isSaved
+                    ? `onclick="unsaveTaskFromServer(event, ${task.task_id})"`
+                    : `onclick="saveTaskToLocal(event, ${task.task_id}, '${encodedContour}')"`;
+
+                return `
+                    <div class="status-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 5px; border-bottom: 1px dashed #eee;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-weight: bold; color: var(--secondary-color);">#${task.task_id}</span>
+                            <canvas class="thumb-canvas-svr-${task.task_id}" width="40" height="30" style="border: 1px solid #ddd; background: #fff; border-radius: 4px; display: block; position: static;"></canvas>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            ${badgeHtml}
+                            <button ${starAction} style="padding: 4px 6px; min-width: auto; font-size: 14px; background: none; color: ${starColor}; cursor: ${starCursor}; border: none; font-weight: bold;" title="${isSaved ? '보관됨' : '보관'}">${starIcon}</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            setTimeout(() => {
+                tasks.forEach(task => {
+                    const canvas = document.querySelector(`.thumb-canvas-svr-${task.task_id}`);
+                    if (canvas) {
+                        const w = simData ? simData.width : simCanvas.width;
+                        const h = simData ? simData.height : simCanvas.height;
+                        drawThumb(canvas, task.contours, w, h);
+                    }
+                });
+            }, 50);
+        }
+
         // 메뉴 토글 함수
         function toggleMenu(e) {
             e.stopPropagation();
+            const willShow = !menuDropdown.classList.contains('show');
             menuDropdown.classList.toggle('show');
             eraserSizeMenu.classList.remove('show');
+
+            if (willShow) {
+                fetchTasksStatus();
+                renderSavedList();
+                if (!statusPollInterval) {
+                    statusPollInterval = setInterval(fetchTasksStatus, 3000);
+                }
+            } else {
+                if (statusPollInterval) {
+                    clearInterval(statusPollInterval);
+                    statusPollInterval = null;
+                }
+            }
         }
 
         // 지우개 굵기 메뉴 토글
@@ -551,6 +830,10 @@
             e.stopPropagation();
             eraserSizeMenu.classList.toggle('show');
             menuDropdown.classList.remove('show');
+            if (statusPollInterval) {
+                clearInterval(statusPollInterval);
+                statusPollInterval = null;
+            }
         }
 
         // 지우개 굵기 설정
@@ -565,14 +848,25 @@
         window.addEventListener('click', () => {
             menuDropdown.classList.remove('show');
             eraserSizeMenu.classList.remove('show');
+            if (statusPollInterval) {
+                clearInterval(statusPollInterval);
+                statusPollInterval = null;
+            }
         });
 
         // 서버 대기열 초기화 함수
         async function clearServerQueue() {
-            if (!confirm("서버에 전송된 모든 G-Code 데이터를 삭제하시겠습니까?")) return;
+            if (!confirm("서버에 전송된 G-Code 데이터들을 삭제하시겠습니까? (로컬 보관함에 저장하신 그림들은 보존됩니다)")) return;
 
             try {
-                const response = await fetch('/api/clear-task', { method: 'POST' });
+                const savedList = getLocalSavedDrawings();
+                const savedIds = savedList.map(item => item.server_task_id).filter(id => id !== undefined);
+
+                const response = await fetch('/api/clear-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ saved_ids: savedIds })
+                });
 
                 if (!response.ok) {
                     const errorMsg = await response.text();
@@ -582,6 +876,7 @@
                 const result = await response.json();
                 if (result.status === 'success') {
                     alert(result.message);
+                    fetchTasksStatus();
                 } else {
                     throw new Error(result.message || "삭제 실패");
                 }
@@ -683,7 +978,7 @@
         function startDrawingAt(x, y) {
             isDrawing = true;
 
-            if (mode === 'editing') {
+            if (mode === 'editing' || mode === 'drawing') {
                 const pos = toSimCoords(x, y);
                 if (activeTool === 'pen') {
                     currentContour = [pos];
@@ -698,32 +993,37 @@
                 } else if (activeTool === 'eraser') {
                     eraseAt(pos);
                 }
-            } else {
-                inputCtx.beginPath();
-                inputCtx.moveTo(x, y);
-                if (activeTool === 'eraser') {
-                    inputCtx.globalCompositeOperation = 'destination-out';
-                    inputCtx.lineWidth = currentEraseRadius * 2; // 지우개 크기 동기화
-                } else {
-                    inputCtx.globalCompositeOperation = 'source-over';
-                    inputCtx.lineWidth = 3; // 기본 직접 그리기 굵기 축소 (5 -> 3)
-                }
             }
         }
 
         function drawTo(x, y) {
-            if (mode === 'editing') {
+            if (mode === 'editing' || mode === 'drawing') {
                 const pos = toSimCoords(x, y);
                 if (activeTool === 'pen' && currentContour) {
+                    const lastPt = currentContour[currentContour.length - 1];
+                    if (lastPt) {
+                        const dist = Math.hypot(pos.x - lastPt.x, pos.y - lastPt.y);
+                        // 초당 수집되는 점의 개수가 부족하여 각져 보이는 문제를 해결하기 위해,
+                        // 마우스 이동 간격이 1.5px보다 벌어지는 경우 그 사이에 선형 보간 점들을 촘촘히 보충
+                        const step = 1.5;
+                        if (dist > step) {
+                            const stepsCount = Math.floor(dist / step);
+                            for (let k = 1; k < stepsCount; k++) {
+                                const t = k / stepsCount;
+                                const interpPt = {
+                                    x: lastPt.x + (pos.x - lastPt.x) * t,
+                                    y: lastPt.y + (pos.y - lastPt.y) * t
+                                };
+                                currentContour.push(interpPt);
+                            }
+                        }
+                    }
                     currentContour.push(pos);
                     inputCtx.lineTo(x, y);
                     inputCtx.stroke();
                 } else if (activeTool === 'eraser') {
                     eraseAt(pos);
                 }
-            } else {
-                inputCtx.lineTo(x, y);
-                inputCtx.stroke();
             }
         }
 
@@ -760,10 +1060,10 @@
 
         function stopDrawing() {
             isDrawing = false;
-            if (mode === 'editing' && activeTool === 'pen' && currentContour && currentContour.length < 2) {
+            if ((mode === 'editing' || mode === 'drawing') && activeTool === 'pen' && currentContour && currentContour.length < 2) {
                 activeContours.pop(); // 너무 짧은 점 제거
             }
-            if (mode === 'editing') {
+            if (mode === 'editing' || mode === 'drawing') {
                 // 그린 내용을 시뮬레이션 캔버스에 합치고 inputCanvas 초기화
                 renderContours(activeContours, simCtx);
                 inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
@@ -824,6 +1124,17 @@
                 lastInputMode = 'drawing';
                 editTools.style.display = 'flex'; // 직접 그리기 모드에서도 수정 도구 표시
                 setEditTool('pen');
+
+                // 직접 그리기용 빈 벡터 데이터 초기 데이터 설정
+                simData = {
+                    width: simCanvas.width,
+                    height: simCanvas.height,
+                    contours: []
+                };
+                activeContours = simData.contours;
+
+                inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+                simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
             }
             else if (mode === 'simulating') {
                 workArea.classList.add('simulating');
@@ -991,7 +1302,10 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ gcode: simData.gcode })
+                    body: JSON.stringify({
+                        gcode: simData.gcode,
+                        contours: simData.contours
+                    })
                 });
 
                 if (!response.ok) {
@@ -1018,20 +1332,45 @@
         }
 
         async function confirmDrawing() {
-            // 캔버스 내용을 이미지로 변환 (배경을 흰색으로 채움)
-            // 투명 배경인 경우 OpenCV에서 외곽선 추출이 제대로 되지 않을 수 있음
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = inputCanvas.width;
-            tempCanvas.height = inputCanvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '30%';
 
-            tempCtx.fillStyle = '#ffffff';
-            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            tempCtx.drawImage(inputCanvas, 0, 0);
+            // 길이가 2 미만인 점들은 무시
+            simData.contours = activeContours.filter(c => c.length > 1);
 
-            const dataUrl = tempCanvas.toDataURL('image/jpeg');
-            const blob = await (await fetch(dataUrl)).blob();
-            processImage(blob, true); // 직접 그리기 모드임을 알림
+            try {
+                // 직접 수집된 정교한 벡터 직선 데이터로 G-Code 생성 요청
+                const response = await fetch('/api/update-gcode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        width: simData.width,
+                        height: simData.height,
+                        contours: simData.contours
+                    })
+                });
+
+                const result = await response.json();
+                progressBar.style.width = '100%';
+
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 500);
+
+                if (result.status === 'success') {
+                    simData.gcode = result.gcode;
+                    inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+                    setMode('simulating');
+                    skipSimulation(); // 결과 즉시 표시
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (err) {
+                progressContainer.style.display = 'none';
+                alert("드로잉 벡터 G-Code 생성 실패: " + err.message);
+            }
         }
 
         async function processImage(imageBlob, isDrawing = false) {
@@ -1151,7 +1490,7 @@
 
             let contourIdx = 0;
             let pointIdx = 0;
-            const speed = 15; // 그리기 속도 조절
+            const speed = 30; // 그리기 시뮬레이션 속도 2배 향상 (15 -> 30)
 
             function animate() {
                 if (mode !== 'simulating') return; // 모드가 바뀌면 중단

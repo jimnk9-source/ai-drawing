@@ -15,18 +15,19 @@ app = FastAPI()
 # 데이터 모델 정의
 class DrawingTask(BaseModel):
     gcode: str
+    contours: Optional[list] = None
 
 class ContoursData(BaseModel):
     width: int
     height: int
     contours: list
 
-# 임시 데이터 저장소
-drawing_queue = {
-    "task_id": 0,
-    "gcode": "",
-    "status": "idle"
-}
+class ClearRequest(BaseModel):
+    saved_ids: list[int]
+
+# 임시 데이터 저장소 (다중 큐 및 히스토리 관리)
+tasks_db = []  # 각 task: {"task_id": int, "gcode": str, "contours": list, "status": str ("pending" | "drawing" | "complete")}
+task_counter = 0
 
 # 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -90,23 +91,30 @@ async def read_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 @app.post("/api/clear-task")
-async def clear_task():
-    global drawing_queue
+async def clear_task(req: ClearRequest):
+    global tasks_db
     try:
-        drawing_queue = {"task_id": 0, "gcode": "", "status": "idle"}
-        print(">>> SUCCESS: Queue Reset")
-        return JSONResponse(content={"status": "success", "message": "모든 G-Code 데이터가 삭제되었습니다."})
+        # 보관된 saved_ids에 들어있거나 현재 출력중('drawing')인 작업만 남겨두고 나머지는 큐에서 제거
+        tasks_db = [t for t in tasks_db if t["task_id"] in req.saved_ids or t["status"] == "drawing"]
+        print(f">>> SUCCESS: Queue Cleared (Saved preserved: {req.saved_ids})")
+        return JSONResponse(content={"status": "success", "message": "저장된 데이터를 제외하고 모든 G-Code가 삭제되었습니다."})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.post("/api/push-task")
 async def push_task(task: DrawingTask):
-    global drawing_queue
+    global tasks_db, task_counter
     try:
-        drawing_queue["gcode"] = task.gcode
-        drawing_queue["task_id"] += 1
-        drawing_queue["status"] = "pending"
-        return {"status": "success", "task_id": drawing_queue["task_id"]}
+        task_counter += 1
+        new_task = {
+            "task_id": task_counter,
+            "gcode": task.gcode,
+            "contours": task.contours or [],
+            "status": "pending"
+        }
+        tasks_db.append(new_task)
+        print(f">>> SUCCESS: Task {task_counter} Pushed")
+        return {"status": "success", "task_id": task_counter}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -120,11 +128,36 @@ async def update_gcode(data: ContoursData):
 
 @app.get("/api/get-task")
 async def get_task():
-    global drawing_queue
-    if drawing_queue["status"] == "pending":
-        drawing_queue["status"] = "idle"
-        return {"task_id": drawing_queue["task_id"], "gcode": drawing_queue["gcode"]}
+    global tasks_db
+    # pending인 작업 중 가장 오래된 작업을 꺼내 상태를 drawing으로 업데이트 후 ESP32에 제공
+    for task in tasks_db:
+        if task["status"] == "pending":
+            task["status"] = "drawing"
+            print(f">>> ESP32 fetched task {task['task_id']}. Status: drawing")
+            return {"task_id": task["task_id"], "gcode": task["gcode"]}
     return {"task_id": 0, "gcode": ""}
+
+@app.post("/api/complete-task")
+async def complete_task(task_id: int):
+    global tasks_db
+    for task in tasks_db:
+        if task["task_id"] == task_id:
+            task["status"] = "complete"
+            print(f">>> ESP32 completed task {task_id}. Status: complete")
+            return {"status": "success", "message": f"Task {task_id} completed"}
+    return JSONResponse(status_code=404, content={"status": "error", "message": "태스크를 찾을 수 없습니다."})
+
+@app.get("/api/tasks-status")
+async def get_tasks_status():
+    global tasks_db
+    # 프론트엔드가 실시간 썸네일을 렌더링하기 위해 contours 전송
+    return [
+        {
+            "task_id": t["task_id"],
+            "contours": t["contours"],
+            "status": t["status"]
+        } for t in tasks_db
+    ]
 
 @app.post("/api/process-image")
 async def process_image(file: UploadFile = File(...), is_drawing: str = Form("false")):
