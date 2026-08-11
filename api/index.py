@@ -47,7 +47,7 @@ def generate_gcode(contours, img_w, img_h):
         "M5 ; Pen Up",
         "G4 P150 ; Wait for servo",
         "F2000 ; Set default speed"
-    ]#w
+    ]#wtf
     
     for path in contours:
         if not path: continue
