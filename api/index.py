@@ -47,7 +47,7 @@ def generate_gcode(contours, img_w, img_h):
         "M5 ; Pen Up",
         "G4 P150 ; Wait for servo",
         "F2000 ; Set default speed"
-    ]
+    ]#w
     
     for path in contours:
         if not path: continue
@@ -68,7 +68,7 @@ def generate_gcode(contours, img_w, img_h):
     gcode.append("G0 X0 Y0 ; Return to home")
     return "\n".join(gcode)
 
-@app.get("/")
+@app.get("/") 
 async def read_root():
     return {"status": "online", "message": "API Server is running"}
 @app.post("/api/clear-task")
