@@ -69,12 +69,8 @@ def generate_gcode(contours, img_w, img_h):
     return "\n".join(gcode)
 
 @app.get("/")
-async def read_index():
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return JSONResponse(status_code=404, content={"detail": "index.html을 찾을 수 없습니다."})
-
+async def read_root():
+    return {"status": "online", "message": "API Server is running"}
 @app.post("/api/clear-task")
 async def clear_task(req: ClearRequest):
     global tasks_db
