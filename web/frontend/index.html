@@ -392,21 +392,25 @@
         }
 
         .eraser-size-menu {
-            position: absolute;
-            left: 100%;
-            top: -10px;
-            background: rgba(255, 255, 255, 0.95);
+            position: static;
+            background: rgba(240, 247, 255, 0.95);
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(74, 144, 226, 0.2);
             display: none;
-            flex-direction: row;
-            padding: 4px;
-            gap: 3px;
+            flex-direction: row !important;
+            padding: 6px 14px;
+            gap: 10px;
             z-index: 100;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: nowrap !important;
+            width: auto;
+            min-width: 120px;
+            box-sizing: border-box;
         }
 
         .eraser-size-menu.show {
-            display: flex;
+            display: flex !important;
         }
 
         .shape-select-menu {
@@ -581,22 +585,16 @@
                 <!-- 첫 번째 행: 도구 버튼들 -->
                 <div class="tool-row">
                     <button class="edit-tool-btn active" id="tool-pen" onclick="setEditTool('pen')" title="펜">✏️</button>
-                    <div class="eraser-container">
-                        <button class="edit-tool-btn" id="tool-eraser" onclick="setEditTool('eraser')"
-                            title="지우개">🧽</button>
-                        <button class="eraser-more-btn" id="eraser-more" onclick="toggleEraserSizeMenu(event)"
-                            title="굵기 조절">></button>
-                        <div class="eraser-size-menu" id="eraser-size-menu">
-                            <button class="size-btn" onclick="setEraserSize(5, this)" title="얇게"><span
-                                    class="dot dot-sm"></span></button>
-                            <button class="size-btn active" onclick="setEraserSize(15, this)" title="중간"><span
-                                    class="dot dot-md"></span></button>
-                            <button class="size-btn" onclick="setEraserSize(30, this)" title="두껍게"><span
-                                    class="dot dot-lg"></span></button>
-                        </div>
-                    </div>
+                    <button class="edit-tool-btn" id="tool-eraser" onclick="setEditTool('eraser')" title="지우개">🧽</button>
                     <!-- 도형 추가 버튼 -->
                     <button class="edit-tool-btn" id="tool-shape" onclick="toggleShapeMenu(event)" title="도형">📐</button>
+                </div>
+
+                <!-- 지우개 크기 선택 (하단 행, 지우개 선택 시 나타남) -->
+                <div class="eraser-size-menu" id="eraser-size-menu">
+                    <button class="size-btn" onclick="setEraserSize(5, this)" title="얇게"><span class="dot dot-sm"></span></button>
+                    <button class="size-btn active" onclick="setEraserSize(15, this)" title="중간"><span class="dot dot-md"></span></button>
+                    <button class="size-btn" onclick="setEraserSize(30, this)" title="두껍게"><span class="dot dot-lg"></span></button>
                 </div>
 
                 <!-- 두 번째 행: 도형 서브메뉴 (📐 누르면 아래에 나타남) -->
@@ -635,7 +633,7 @@
         const editTools = document.getElementById('edit-tools');
         const toolPen = document.getElementById('tool-pen');
         const toolEraser = document.getElementById('tool-eraser');
-        const eraserMoreBtn = document.getElementById('eraser-more');
+        const eraserMoreBtn = null; // 더 이상 사용하지 않음
         const eraserSizeMenu = document.getElementById('eraser-size-menu');
 
         const inputCtx = inputCanvas.getContext('2d');
@@ -1054,9 +1052,15 @@
 
         // 그리기 로직 (마우스)
         inputCanvas.addEventListener('mousedown', startDrawing);
-        inputCanvas.addEventListener('mousemove', draw);
+        inputCanvas.addEventListener('mousemove', (e) => {
+            drawEraserCursor(e);
+            draw(e);
+        });
         inputCanvas.addEventListener('mouseup', stopDrawing);
-        inputCanvas.addEventListener('mouseleave', stopDrawing);
+        inputCanvas.addEventListener('mouseleave', (e) => {
+            clearEraserCursor();
+            stopDrawing(e);
+        });
 
         // 그리기 로직 (터치 - 모바일 지원)
         inputCanvas.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -1069,6 +1073,42 @@
                 x: (touchEvent.touches[0].clientX - rect.left) * (inputCanvas.width / rect.width),
                 y: (touchEvent.touches[0].clientY - rect.top) * (inputCanvas.height / rect.height)
             };
+        }
+
+        // 지우개 커서 원형 미리보기
+        let eraserCursorPos = null;
+
+        function drawEraserCursor(e) {
+            if (activeTool !== 'eraser' || (mode !== 'editing' && mode !== 'drawing')) {
+                clearEraserCursor();
+                return;
+            }
+            const pos = getMousePos(e);
+            eraserCursorPos = pos;
+            renderEraserCursorAt(pos.x, pos.y);
+        }
+
+        function clearEraserCursor() {
+            eraserCursorPos = null;
+            // isDrawing 중이 아닐 때만 inputCtx 지움
+            if (!isDrawing) {
+                inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+            }
+        }
+
+        function renderEraserCursorAt(x, y) {
+            inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+            inputCtx.save();
+            inputCtx.beginPath();
+            inputCtx.arc(x, y, currentEraseRadius, 0, 2 * Math.PI);
+            inputCtx.fillStyle = 'rgba(255, 77, 79, 0.12)';
+            inputCtx.fill();
+            inputCtx.strokeStyle = 'rgba(255, 77, 79, 0.55)';
+            inputCtx.lineWidth = 1.5;
+            inputCtx.setLineDash([4, 3]);
+            inputCtx.stroke();
+            inputCtx.setLineDash([]);
+            inputCtx.restore();
         }
 
         function getMousePos(e) {
@@ -1232,6 +1272,7 @@
                     inputCtx.stroke();
                 } else if (activeTool === 'eraser') {
                     eraseAt(pos);
+                    renderEraserCursorAt(x, y);
                 }
             }
         }
@@ -1389,6 +1430,10 @@
             if (mode === 'editing' || mode === 'drawing') {
                 drawAll();
                 inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+                // 지우개 커서 포지션이 있으면 재렌더 (손가락을 떼도 원형 미리보기 유지)
+                if (activeTool === 'eraser' && eraserCursorPos) {
+                    renderEraserCursorAt(eraserCursorPos.x, eraserCursorPos.y);
+                }
             } else {
                 inputCtx.globalCompositeOperation = 'source-over';
             }
@@ -1532,6 +1577,19 @@
             }
         }
 
+        function setEraserSize(radius, btnEl) {
+            currentEraseRadius = radius;
+            // 활성 표시 갱신
+            const btns = eraserSizeMenu ? eraserSizeMenu.querySelectorAll('.size-btn') : [];
+            btns.forEach(b => b.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+        }
+
+        function toggleEraserSizeMenu(e) {
+            // 더 이상 사용하지 않지만 하위 호환성을 위해 남겨둠
+            if (e) e.stopPropagation();
+        }
+
         function setEditTool(tool) {
             activeTool = tool;
             toolPen.classList.toggle('active', tool === 'pen');
@@ -1543,9 +1601,8 @@
             }
 
             if (tool === 'eraser') {
-                eraserMoreBtn.style.display = 'block';
+                eraserSizeMenu.classList.add('show');
             } else {
-                eraserMoreBtn.style.display = 'none';
                 eraserSizeMenu.classList.remove('show');
             }
 
