@@ -70,7 +70,10 @@ def generate_gcode(contours, img_w, img_h):
 
 @app.get("/") 
 async def read_root():
-    return {"status": "online", "message": "API Server is running"}
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"status": "error", "message": f"Frontend index.html not found at {index_path}"}
 @app.post("/api/clear-task")
 async def clear_task(req: ClearRequest):
     global tasks_db
