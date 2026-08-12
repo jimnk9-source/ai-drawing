@@ -591,7 +591,7 @@
                 </div>
 
                 <!-- 지우개 크기 선택 (하단 행, 지우개 선택 시 나타남) -->
-                <div class="eraser-size-menu" id="eraser-size-menu">
+                <div class="eraser-size-menu" id="eraser-size-menu" style="display: none;">
                     <button class="size-btn" onclick="setEraserSize(5, this)" title="얇게"><span class="dot dot-sm"></span></button>
                     <button class="size-btn active" onclick="setEraserSize(15, this)" title="중간"><span class="dot dot-md"></span></button>
                     <button class="size-btn" onclick="setEraserSize(30, this)" title="두껍게"><span class="dot dot-lg"></span></button>
@@ -1252,24 +1252,21 @@
                     const lastPt = currentContour[currentContour.length - 1];
                     if (lastPt) {
                         const dist = Math.hypot(pos.x - lastPt.x, pos.y - lastPt.y);
-                        // 초당 수집되는 점의 개수가 부족하여 각져 보이는 문제를 해결하기 위해,
-                        // 마우스 이동 간격이 1.5px보다 벌어지는 경우 그 사이에 선형 보간 점들을 촘촘히 보충
-                        const step = 1.5;
-                        if (dist > step) {
-                            const stepsCount = Math.floor(dist / step);
-                            for (let k = 1; k < stepsCount; k++) {
-                                const t = k / stepsCount;
-                                const interpPt = {
-                                    x: lastPt.x + (pos.x - lastPt.x) * t,
-                                    y: lastPt.y + (pos.y - lastPt.y) * t
-                                };
-                                currentContour.push(interpPt);
-                            }
-                        }
+                        // 3px 미만 이동은 떨림으로 간주하여 무시
+                        if (dist < 3) return;
+
+                        // 지수 이동 평균으로 위치 스무딩 (alpha=0.5: 절반씩 블렌딩)
+                        const alpha = 0.5;
+                        const smoothed = {
+                            x: lastPt.x + (pos.x - lastPt.x) * alpha,
+                            y: lastPt.y + (pos.y - lastPt.y) * alpha
+                        };
+
+                        currentContour.push(smoothed);
+                        inputCtx.lineTo(smoothed.x * (inputCanvas.width / simCanvas.width),
+                                        smoothed.y * (inputCanvas.height / simCanvas.height));
+                        inputCtx.stroke();
                     }
-                    currentContour.push(pos);
-                    inputCtx.lineTo(x, y);
-                    inputCtx.stroke();
                 } else if (activeTool === 'eraser') {
                     eraseAt(pos);
                     renderEraserCursorAt(x, y);
@@ -1601,9 +1598,9 @@
             }
 
             if (tool === 'eraser') {
-                eraserSizeMenu.classList.add('show');
+                eraserSizeMenu.style.display = 'flex';
             } else {
-                eraserSizeMenu.classList.remove('show');
+                eraserSizeMenu.style.display = 'none';
             }
 
             if (tool !== 'shape') {
@@ -1801,38 +1798,11 @@
         }
 
         function convertShapesToContours() {
+            // shapeToContour()와 동일한 밀집 샘플링으로 변환 (지우개 부분 지우기 호환)
             const output = [];
             shapes.forEach(s => {
-                const pts = [];
-                if (s.type === 'rect') {
-                    // 사각형 닫힌 루프 생성
-                    pts.push({ x: s.x, y: s.y });
-                    pts.push({ x: s.x + s.w, y: s.y });
-                    pts.push({ x: s.x + s.w, y: s.y + s.h });
-                    pts.push({ x: s.x, y: s.y + s.h });
-                    pts.push({ x: s.x, y: s.y });
-                } else if (s.type === 'circle') {
-                    // 원 36분할 벡터 생성
-                    const cx = s.x + s.w/2;
-                    const cy = s.y + s.h/2;
-                    const rx = Math.abs(s.w/2);
-                    const ry = Math.abs(s.h/2);
-                    for (let i = 0; i <= 36; i++) {
-                        const rad = (i * 10 * Math.PI) / 180;
-                        pts.push({ x: cx + rx * Math.cos(rad), y: cy + ry * Math.sin(rad) });
-                    }
-                } else if (s.type === 'triangle') {
-                    // 삼각형 생성
-                    pts.push({ x: s.x + s.w/2, y: s.y });
-                    pts.push({ x: s.x + s.w, y: s.y + s.h });
-                    pts.push({ x: s.x, y: s.y + s.h });
-                    pts.push({ x: s.x + s.w/2, y: s.y });
-                } else if (s.type === 'line') {
-                    // 직선 생성
-                    pts.push({ x: s.x, y: s.y });
-                    pts.push({ x: s.x + s.w, y: s.y + s.h });
-                }
-                if (pts.length > 0) {
+                const pts = shapeToContour(s); // 80분할 밀집 샘플링 재사용
+                if (pts.length > 1) {
                     output.push(pts);
                 }
             });
