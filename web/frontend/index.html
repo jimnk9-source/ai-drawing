@@ -312,12 +312,34 @@
             left: 50%;
             transform: translateX(-50%);
             background: rgba(255, 255, 255, 0.93);
-            padding: 8px 14px 8px 14px;
+            padding: 4px 14px 8px 14px;
             border-radius: 20px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.13);
             z-index: 30;
-            gap: 6px;
+            gap: 4px;
             align-items: stretch;
+            touch-action: none;
+        }
+
+        /* 툴바 드래그 핸들 (상단 바) */
+        .drag-handle {
+            width: 38px;
+            height: 5px;
+            background-color: var(--secondary-color);
+            opacity: 0.45;
+            border-radius: 3px;
+            margin: 2px auto 4px auto;
+            cursor: grab;
+            touch-action: none;
+            transition: opacity 0.2s, background-color 0.2s;
+            user-select: none;
+        }
+
+        .drag-handle:hover,
+        .drag-handle:active {
+            opacity: 0.85;
+            background-color: var(--primary-color);
+            cursor: grabbing;
         }
 
         /* 도구 버튼 가로 행 */
@@ -394,18 +416,18 @@
         .eraser-size-menu {
             position: static;
             background: rgba(240, 247, 255, 0.95);
-            border-radius: 12px;
+            border-radius: 11px;
             border: 1px solid rgba(74, 144, 226, 0.2);
             display: none;
             flex-direction: row !important;
-            padding: 6px 14px;
-            gap: 10px;
+            padding: 3px 8px;
+            gap: 5px;
             z-index: 100;
             align-items: center;
             justify-content: center;
             flex-wrap: nowrap !important;
             width: auto;
-            min-width: 120px;
+            min-width: auto;
             box-sizing: border-box;
         }
 
@@ -478,8 +500,9 @@
             background: none;
             border: 1px solid transparent;
             border-radius: 6px;
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
+            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -582,35 +605,47 @@
 
             <!-- 수정 도구 -->
             <div id="edit-tools">
+                <!-- 상단 드래그 핸들 바 -->
+                <div class="drag-handle" id="edit-tools-handle" title="드래그하여 위치 이동"></div>
+
                 <!-- 첫 번째 행: 도구 버튼들 -->
                 <div class="tool-row">
-                    <button class="edit-tool-btn active" id="tool-pen" onclick="setEditTool('pen')" title="펜">✏️</button>
-                    <button class="edit-tool-btn" id="tool-eraser" onclick="setEditTool('eraser')" title="지우개">🧽</button>
+                    <button class="edit-tool-btn active" id="tool-pen" onclick="setEditTool('pen')"
+                        title="펜">✏️</button>
+                    <button class="edit-tool-btn" id="tool-eraser" onclick="setEditTool('eraser')"
+                        title="지우개">🧽</button>
                     <!-- 도형 추가 버튼 -->
-                    <button class="edit-tool-btn" id="tool-shape" onclick="toggleShapeMenu(event)" title="도형">📐</button>
+                    <button class="edit-tool-btn" id="tool-shape" onclick="toggleShapeMenu(event)"
+                        title="도형">📐</button>
                 </div>
 
                 <!-- 지우개 크기 선택 (하단 행, 지우개 선택 시 나타남) -->
                 <div class="eraser-size-menu" id="eraser-size-menu" style="display: none;">
-                    <button class="size-btn" onclick="setEraserSize(5, this)" title="얇게"><span class="dot dot-sm"></span></button>
-                    <button class="size-btn active" onclick="setEraserSize(15, this)" title="중간"><span class="dot dot-md"></span></button>
-                    <button class="size-btn" onclick="setEraserSize(30, this)" title="두껍게"><span class="dot dot-lg"></span></button>
+                    <button class="size-btn" onclick="setEraserSize(5, this)" title="얇게"><span
+                            class="dot dot-sm"></span></button>
+                    <button class="size-btn active" onclick="setEraserSize(15, this)" title="중간"><span
+                            class="dot dot-md"></span></button>
+                    <button class="size-btn" onclick="setEraserSize(30, this)" title="두껍게"><span
+                            class="dot dot-lg"></span></button>
                 </div>
 
                 <!-- 두 번째 행: 도형 서브메뉴 (📐 누르면 아래에 나타남) -->
-                <div class="shape-select-menu" id="shape-select-menu" style="display: none; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px;">
-                    <button class="size-btn shape-item-btn" onclick="addShape('line')" title="직선" style="font-size: 16px; font-weight: bold; flex-shrink: 0;">➖</button>
-                    <button class="size-btn shape-item-btn" onclick="addShape('triangle')" title="삼각형" style="font-size: 16px; flex-shrink: 0;">▲</button>
-                    <button class="size-btn shape-item-btn" onclick="addShape('rect')" title="사각형" style="font-size: 16px; flex-shrink: 0;">■</button>
-                    <button class="size-btn shape-item-btn" onclick="addShape('circle')" title="원" style="font-size: 16px; flex-shrink: 0;">●</button>
-                </div>
-
-                <!-- 세 번째 행: 도형 선택 시 삭제 바 -->
-                <div id="shape-delete-bar" style="display: none; justify-content: center; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(255, 77, 79, 0.08); border-radius: 12px; border: 1px solid rgba(255, 77, 79, 0.25); flex-shrink: 0; margin-top: 4px;">
-                    <span style="font-size: 12px; color: var(--danger-color); font-weight: bold;">선택된 도형</span>
-                    <button class="size-btn" id="shape-delete-btn" onclick="deleteSelectedShape()" title="선택된 도형 삭제" style="font-size: 16px; color: var(--danger-color); background: none; border: none; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">🗑️</button>
+                <div class="shape-select-menu" id="shape-select-menu"
+                    style="display: none; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 3px; padding: 4px 6px;">
+                    <button class="size-btn shape-item-btn" onclick="addShape('line')" title="직선"
+                        style="font-size: 16px; font-weight: bold; flex-shrink: 0; padding: 2px 4px;">➖</button>
+                    <button class="size-btn shape-item-btn" onclick="addShape('triangle')" title="삼각형"
+                        style="font-size: 16px; flex-shrink: 0; padding: 2px 4px;">▲</button>
+                    <button class="size-btn shape-item-btn" onclick="addShape('rect')" title="사각형"
+                        style="font-size: 16px; flex-shrink: 0; padding: 2px 4px;">■</button>
+                    <button class="size-btn shape-item-btn" onclick="addShape('circle')" title="원"
+                        style="font-size: 16px; flex-shrink: 0; padding: 2px 4px;">●</button>
                 </div>
             </div>
+
+            <!-- 선택된 도형 바로 위에 뜨는 플로팅 삭제 버튼 -->
+            <button id="floating-shape-delete-btn" onclick="deleteSelectedShape()" title="선택된 도형 삭제"
+                style="display: none; position: absolute; z-index: 45; background: #ff4d4f; color: white; border: none; border-radius: 6px; padding: 3px 8px !important; min-width: auto !important; width: auto !important; font-size: 12px; line-height: 1; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(255, 77, 79, 0.35); transform: translate(-50%, -100%); white-space: nowrap; pointer-events: auto;">X</button>
         </div>
 
         <div class="button-group" id="button-group">
@@ -663,6 +698,87 @@
 
         // 삼선 메뉴 갱신용 폴링 타이머
         let statusPollInterval = null;
+
+        // 툴바 드래그 이동 기능 로직
+        const editToolsHandle = document.getElementById('edit-tools-handle');
+        let isToolDragging = false;
+        let toolDragStart = { x: 0, y: 0 };
+        let toolInitialPos = { left: 0, top: 0 };
+
+        function initToolDrag(e) {
+            e.stopPropagation();
+            isToolDragging = true;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            toolDragStart = { x: clientX, y: clientY };
+
+            // workArea 상대 좌표 계산
+            const rect = editTools.getBoundingClientRect();
+            const parentRect = workArea.getBoundingClientRect();
+
+            toolInitialPos = {
+                left: rect.left - parentRect.left,
+                top: rect.top - parentRect.top
+            };
+
+            editTools.style.transform = 'none';
+            editTools.style.left = toolInitialPos.left + 'px';
+            editTools.style.top = toolInitialPos.top + 'px';
+            editTools.style.bottom = 'auto';
+
+            window.addEventListener('mousemove', doToolDrag);
+            window.addEventListener('mouseup', stopToolDrag);
+            window.addEventListener('touchmove', doToolDrag, { passive: false });
+            window.addEventListener('touchend', stopToolDrag);
+        }
+
+        function doToolDrag(e) {
+            if (!isToolDragging) return;
+            if (e.cancelable) e.preventDefault();
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const dx = clientX - toolDragStart.x;
+            const dy = clientY - toolDragStart.y;
+
+            let newLeft = toolInitialPos.left + dx;
+            let newTop = toolInitialPos.top + dy;
+
+            // workArea 영역 범위 제한
+            const parentRect = workArea.getBoundingClientRect();
+            const toolRect = editTools.getBoundingClientRect();
+
+            const maxLeft = parentRect.width - toolRect.width;
+            const maxTop = parentRect.height - toolRect.height;
+
+            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+            newTop = Math.max(0, Math.min(newTop, maxTop));
+
+            editTools.style.left = newLeft + 'px';
+            editTools.style.top = newTop + 'px';
+        }
+
+        function stopToolDrag() {
+            isToolDragging = false;
+            window.removeEventListener('mousemove', doToolDrag);
+            window.removeEventListener('mouseup', stopToolDrag);
+            window.removeEventListener('touchmove', doToolDrag);
+            window.removeEventListener('touchend', stopToolDrag);
+        }
+
+        if (editToolsHandle) {
+            editToolsHandle.addEventListener('mousedown', initToolDrag);
+            editToolsHandle.addEventListener('touchstart', initToolDrag, { passive: false });
+        }
+
+        function resetEditToolsPos() {
+            editTools.style.transform = 'translateX(-50%)';
+            editTools.style.left = '50%';
+            editTools.style.bottom = '20px';
+            editTools.style.top = 'auto';
+        }
 
         // 로컬 보관 목록 불러오기
         function getLocalSavedDrawings() {
@@ -842,7 +958,7 @@
             try {
                 const response = await fetch('/api/tasks-status');
                 const tasks = await response.json();
-                
+
                 // 완료 알림 브로드캐스트 감지
                 tasks.forEach(task => {
                     if (task.status === 'complete' && !completedTaskNotificationSet.has(task.task_id)) {
@@ -1244,6 +1360,7 @@
                             selectedShape.h = dragStartPos.shapeH + simDy;
                         }
                     }
+                    updateDeleteBar();
                     drawAll();
                     return;
                 }
@@ -1264,7 +1381,7 @@
 
                         currentContour.push(smoothed);
                         inputCtx.lineTo(smoothed.x * (inputCanvas.width / simCanvas.width),
-                                        smoothed.y * (inputCanvas.height / simCanvas.height));
+                            smoothed.y * (inputCanvas.height / simCanvas.height));
                         inputCtx.stroke();
                     }
                 } else if (activeTool === 'eraser') {
@@ -1307,15 +1424,31 @@
             return pts;
         }
 
-        // 선택 도형 삭제 바 표시/숨김 및 도형 4종 추가 서브메뉴 표시 동기화
+        // 선택 도형 삭제 버튼 위치 갱신 및 도형 4종 추가 서브메뉴 표시 동기화
         function updateDeleteBar() {
-            const bar = document.getElementById('shape-delete-bar');
+            const btn = document.getElementById('floating-shape-delete-btn');
             const sm = document.getElementById('shape-select-menu');
-            if (selectedShape) {
-                if (bar) bar.style.display = 'flex';
+            if (selectedShape && simData) {
+                const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
+                const offsetX = (simCanvas.width - simData.width * scale) / 2;
+                const offsetY = (simCanvas.height - simData.height * scale) / 2;
+
+                const sx = selectedShape.x * scale + offsetX;
+                const sy = selectedShape.y * scale + offsetY;
+                const sw = selectedShape.w * scale;
+                const sh = selectedShape.h * scale;
+
+                const topY = Math.min(sy, sy + sh);
+                const centerX = sx + sw / 2;
+
+                if (btn) {
+                    btn.style.left = centerX + 'px';
+                    btn.style.top = (topY - 12) + 'px';
+                    btn.style.display = 'block';
+                }
                 if (sm) sm.classList.remove('show');
             } else {
-                if (bar) bar.style.display = 'none';
+                if (btn) btn.style.display = 'none';
                 if (sm) {
                     if (activeTool === 'shape') {
                         sm.classList.add('show');
@@ -1400,7 +1533,7 @@
                         selectedShape = null;
                         updateDeleteBar();
                     }
-                    erased = true; 
+                    erased = true;
                     // shapes 배열에 추가하지 않고 완전히 쪼개진 벡터 선들로 흡수됨
                 } else {
                     newShapes.push(s); // 실제로 지우개에 걸치는 부분이 없으면 유지
@@ -1461,6 +1594,7 @@
             updateDeleteBar();
 
             if (mode === 'idle') {
+                resetEditToolsPos();
                 btnLeft.textContent = '이미지 업로드';
                 btnLeft.className = 'btn-primary';
                 btnMiddle.style.display = 'none';
@@ -1591,7 +1725,7 @@
             activeTool = tool;
             toolPen.classList.toggle('active', tool === 'pen');
             toolEraser.classList.toggle('active', tool === 'eraser');
-            
+
             const toolShape = document.getElementById('tool-shape');
             if (toolShape) {
                 toolShape.classList.toggle('active', tool === 'shape');
@@ -1671,11 +1805,11 @@
                 } else if (s.type === 'circle') {
                     const rx = Math.abs(sw / 2);
                     const ry = Math.abs(sh / 2);
-                    ctx.ellipse(sx + sw/2, sy + sh/2, rx, ry, 0, 0, 2 * Math.PI);
+                    ctx.ellipse(sx + sw / 2, sy + sh / 2, rx, ry, 0, 0, 2 * Math.PI);
                     ctx.stroke();
                     ctx.fill();
                 } else if (s.type === 'triangle') {
-                    ctx.moveTo(sx + sw/2, sy);
+                    ctx.moveTo(sx + sw / 2, sy);
                     ctx.lineTo(sx + sw, sy + sh);
                     ctx.lineTo(sx, sy + sh);
                     ctx.closePath();
@@ -1698,10 +1832,10 @@
 
                     ctx.fillStyle = "#ff4d4f";
                     const handles = [
-                        {x: sx, y: sy},
-                        {x: sx + sw, y: sy},
-                        {x: sx + sw, y: sy + sh},
-                        {x: sx, y: sy + sh}
+                        { x: sx, y: sy },
+                        { x: sx + sw, y: sy },
+                        { x: sx + sw, y: sy + sh },
+                        { x: sx, y: sy + sh }
                     ];
                     handles.forEach(h => {
                         ctx.fillRect(h.x - 5, h.y - 5, 10, 10);
@@ -1724,10 +1858,10 @@
                 const sh = s.h * scale;
 
                 const handles = [
-                    {x: sx, y: sy},
-                    {x: sx + sw, y: sy},
-                    {x: sx + sw, y: sy + sh},
-                    {x: sx, y: sy + sh}
+                    { x: sx, y: sy },
+                    { x: sx + sw, y: sy },
+                    { x: sx + sw, y: sy + sh },
+                    { x: sx, y: sy + sh }
                 ];
                 for (let i = 0; i < handles.length; i++) {
                     if (Math.hypot(clickX - handles[i].x, clickY - handles[i].y) < 12) {
