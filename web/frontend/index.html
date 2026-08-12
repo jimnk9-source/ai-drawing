@@ -1120,6 +1120,7 @@
                     } else {
                         selectedShape = null; // 허공 클릭 시 해제
                     }
+                    updateDeleteBar();
                     drawAll();
                     return;
                 }
@@ -1205,6 +1206,47 @@
             }
         }
 
+        // 도형을 촘촘한 벡터 점으로 변환 (지우개 처리용)
+        function shapeToContour(s) {
+            const pts = [];
+            const SEG = 80; // 분할 수
+            if (s.type === 'rect') {
+                const n = Math.ceil(SEG / 4);
+                for (let i = 0; i <= n; i++) pts.push({ x: s.x + s.w * i / n, y: s.y });
+                for (let i = 1; i <= n; i++) pts.push({ x: s.x + s.w, y: s.y + s.h * i / n });
+                for (let i = 1; i <= n; i++) pts.push({ x: s.x + s.w - s.w * i / n, y: s.y + s.h });
+                for (let i = 1; i <= n; i++) pts.push({ x: s.x, y: s.y + s.h - s.h * i / n });
+            } else if (s.type === 'circle') {
+                const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+                const rx = Math.abs(s.w / 2), ry = Math.abs(s.h / 2);
+                for (let i = 0; i <= SEG; i++) {
+                    const rad = (i / SEG) * 2 * Math.PI;
+                    pts.push({ x: cx + rx * Math.cos(rad), y: cy + ry * Math.sin(rad) });
+                }
+            } else if (s.type === 'triangle') {
+                const n = Math.ceil(SEG / 3);
+                const p1 = { x: s.x + s.w / 2, y: s.y };
+                const p2 = { x: s.x + s.w, y: s.y + s.h };
+                const p3 = { x: s.x, y: s.y + s.h };
+                for (let i = 0; i < n; i++) { const t = i / n; pts.push({ x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t }); }
+                for (let i = 0; i < n; i++) { const t = i / n; pts.push({ x: p2.x + (p3.x - p2.x) * t, y: p2.y + (p3.y - p2.y) * t }); }
+                for (let i = 0; i <= n; i++) { const t = i / n; pts.push({ x: p3.x + (p1.x - p3.x) * t, y: p3.y + (p1.y - p3.y) * t }); }
+            } else if (s.type === 'line') {
+                for (let i = 0; i <= SEG; i++) {
+                    pts.push({ x: s.x + s.w * i / SEG, y: s.y + s.h * i / SEG });
+                }
+            }
+            return pts;
+        }
+
+        // 선택 도형 삭제 바 표시/숨김
+        function updateDeleteBar() {
+            const bar = document.getElementById('shape-delete-bar');
+            if (bar) {
+                bar.style.display = selectedShape ? 'flex' : 'none';
+            }
+        }
+
         function eraseAt(pos) {
             const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
             const eraseRadius = currentEraseRadius / scale; // 동적 지우개 반경
@@ -1235,22 +1277,60 @@
                 activeContours = newContours;
             }
 
-            // 2. 도형(shape) 영역 지우기 - 지우개 원이 도형의 AABB(bounding box)와 겹치면 삭제
-            const prevShapeCount = shapes.length;
-            shapes = shapes.filter(s => {
-                // 도형의 bounding box (simData 좌표계)
+            // 2. 도형(shape) 부분 지우기 - 지우개 원 범위에 드는 점만 지우고 쪼개기
+            const newShapes = [];
+            let shapeChanged = false;
+
+            for (const s of shapes) {
+                // 바운딩 박스로 빠르게 오버랩 점검 (속도 향상)
                 const minX = Math.min(s.x, s.x + s.w) - eraseRadius;
                 const maxX = Math.max(s.x, s.x + s.w) + eraseRadius;
                 const minY = Math.min(s.y, s.y + s.h) - eraseRadius;
                 const maxY = Math.max(s.y, s.y + s.h) + eraseRadius;
                 const inBox = pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY;
-                if (inBox && selectedShape && selectedShape.id === s.id) {
-                    selectedShape = null; // 선택 해제
-                }
-                return !inBox; // 범위 내에 있으면 삭제
-            });
 
-            if (erased || shapes.length !== prevShapeCount) {
+                if (!inBox) {
+                    newShapes.push(s); // 바깥이면 유지
+                    continue;
+                }
+
+                // 점으로 분산하여 지우개 내부의 영역만 부분 커팅
+                const pts = shapeToContour(s);
+                let currentChunk = [];
+                let shapePartErased = false;
+
+                for (const pt of pts) {
+                    const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+                    if (d > eraseRadius) {
+                        currentChunk.push(pt);
+                    } else {
+                        shapePartErased = true;
+                        if (currentChunk.length > 1) {
+                            activeContours.push(currentChunk); // 살아남은 조각은 영속적인 펜으로 전송
+                        }
+                        currentChunk = [];
+                    }
+                }
+                if (currentChunk.length > 1) {
+                    activeContours.push(currentChunk);
+                }
+
+                if (shapePartErased) {
+                    shapeChanged = true;
+                    if (selectedShape && selectedShape.id === s.id) {
+                        selectedShape = null;
+                        updateDeleteBar();
+                    }
+                    erased = true; 
+                    // shapes 배열에 추가하지 않고 완전히 쪼개진 벡터 선들로 흡수됨
+                } else {
+                    newShapes.push(s); // 실제로 지우개에 걸치는 부분이 없으면 유지
+                }
+            }
+
+            shapes = newShapes;
+
+            if (erased || shapeChanged) {
                 drawAll();
             }
         }
@@ -1295,6 +1375,7 @@
             // 모드 전환 시 도형 초기화
             shapes = [];
             selectedShape = null;
+            updateDeleteBar();
 
             if (mode === 'idle') {
                 btnLeft.textContent = '이미지 업로드';
@@ -1427,6 +1508,7 @@
 
             if (tool !== 'shape') {
                 selectedShape = null;
+                updateDeleteBar();
                 const sm = document.getElementById('shape-select-menu');
                 if (sm) sm.classList.remove('show');
                 drawAll();
@@ -1600,6 +1682,7 @@
 
             shapes.push(newShape);
             selectedShape = newShape;
+            updateDeleteBar();
 
             const sm = document.getElementById('shape-select-menu');
             if (sm) sm.classList.remove('show');
@@ -1610,6 +1693,7 @@
             if (selectedShape) {
                 shapes = shapes.filter(s => s.id !== selectedShape.id);
                 selectedShape = null;
+                updateDeleteBar();
                 drawAll();
             } else {
                 alert("삭제할 도형을 먼저 선택해 주세요.");
