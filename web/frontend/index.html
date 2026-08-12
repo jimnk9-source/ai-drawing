@@ -415,19 +415,26 @@
             border-radius: 12px;
             border: 1px solid rgba(74, 144, 226, 0.2);
             display: none;
-            flex-direction: row;
-            padding: 5px 8px;
-            gap: 4px;
+            flex-direction: row !important;
+            padding: 6px 10px;
+            gap: 6px;
             z-index: 100;
             align-items: center;
             justify-content: center;
-            flex-wrap: wrap;
-            width: 100%;
+            flex-wrap: nowrap !important;
+            width: 100% !important;
+            max-width: 220px !important;
+            min-width: 160px !important;
             box-sizing: border-box;
         }
 
         .shape-select-menu.show {
-            display: flex;
+            display: flex !important;
+        }
+
+        .shape-item-btn {
+            flex-shrink: 0 !important;
+            flex-grow: 0 !important;
         }
 
         /* 모바일 대응 */
@@ -438,6 +445,8 @@
                 border-radius: 16px;
                 gap: 5px;
                 max-width: calc(100vw - 32px);
+                width: auto;
+                min-width: 200px;
             }
 
             .edit-tool-btn {
@@ -448,7 +457,10 @@
 
             .shape-select-menu {
                 padding: 4px 6px;
-                gap: 3px;
+                gap: 4px;
+                width: 100% !important;
+                max-width: 190px !important;
+                min-width: 150px !important;
             }
 
             .size-btn {
@@ -588,13 +600,17 @@
                 </div>
 
                 <!-- 두 번째 행: 도형 서브메뉴 (📐 누르면 아래에 나타남) -->
-                <div class="shape-select-menu" id="shape-select-menu">
-                    <button class="size-btn" onclick="addShape('line')" title="직선" style="font-size: 16px; font-weight: bold;">➖</button>
-                    <button class="size-btn" onclick="addShape('triangle')" title="삼각형" style="font-size: 16px;">▲</button>
-                    <button class="size-btn" onclick="addShape('rect')" title="사각형" style="font-size: 16px;">■</button>
-                    <button class="size-btn" onclick="addShape('circle')" title="원" style="font-size: 16px;">●</button>
-                    <div style="width: 1px; height: 20px; background-color: var(--border-color); margin: 0 2px;"></div>
-                    <button class="size-btn" onclick="deleteSelectedShape()" title="선택된 도형 삭제" style="font-size: 16px; color: var(--danger-color);">🗑️</button>
+                <div class="shape-select-menu" id="shape-select-menu" style="display: none; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px;">
+                    <button class="size-btn shape-item-btn" onclick="addShape('line')" title="직선" style="font-size: 16px; font-weight: bold; flex-shrink: 0;">➖</button>
+                    <button class="size-btn shape-item-btn" onclick="addShape('triangle')" title="삼각형" style="font-size: 16px; flex-shrink: 0;">▲</button>
+                    <button class="size-btn shape-item-btn" onclick="addShape('rect')" title="사각형" style="font-size: 16px; flex-shrink: 0;">■</button>
+                    <button class="size-btn shape-item-btn" onclick="addShape('circle')" title="원" style="font-size: 16px; flex-shrink: 0;">●</button>
+                </div>
+
+                <!-- 세 번째 행: 도형 선택 시 삭제 바 -->
+                <div id="shape-delete-bar" style="display: none; justify-content: center; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(255, 77, 79, 0.08); border-radius: 12px; border: 1px solid rgba(255, 77, 79, 0.25); flex-shrink: 0; margin-top: 4px;">
+                    <span style="font-size: 12px; color: var(--danger-color); font-weight: bold;">선택된 도형</span>
+                    <button class="size-btn" id="shape-delete-btn" onclick="deleteSelectedShape()" title="선택된 도형 삭제" style="font-size: 16px; color: var(--danger-color); background: none; border: none; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">🗑️</button>
                 </div>
             </div>
         </div>
@@ -1105,9 +1121,11 @@
             if (mode === 'editing' || mode === 'drawing') {
                 const pos = toSimCoords(x, y);
 
-                if (activeTool === 'shape') {
+                // 지우개가 아닐 때, 지점을 검사하여 도형 히트 시 도형 편집 툴로 자동 전환
+                if (activeTool !== 'eraser') {
                     const hit = checkShapeHit(x, y);
                     if (hit) {
+                        setEditTool('shape');
                         selectedShape = hit;
                         dragStartPos = {
                             x: x,
@@ -1117,15 +1135,27 @@
                             shapeW: hit.w,
                             shapeH: hit.h
                         };
-                    } else {
-                        selectedShape = null; // 허공 클릭 시 해제
+                        updateDeleteBar();
+                        // 도형 서브 메뉴도 함께 표시
+                        const sm = document.getElementById('shape-select-menu');
+                        if (sm) sm.classList.add('show');
+                        drawAll();
+                        return;
                     }
+                }
+
+                if (activeTool === 'shape') {
+                    selectedShape = null;
                     updateDeleteBar();
                     drawAll();
                     return;
                 }
 
                 if (activeTool === 'pen') {
+                    selectedShape = null;
+                    updateDeleteBar();
+                    drawAll();
+
                     currentContour = [pos];
                     activeContours.push(currentContour);
 
@@ -1136,6 +1166,8 @@
                     inputCtx.lineCap = 'round';
                     inputCtx.lineJoin = 'round';
                 } else if (activeTool === 'eraser') {
+                    selectedShape = null;
+                    updateDeleteBar();
                     eraseAt(pos);
                 }
             }
