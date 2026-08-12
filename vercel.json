@@ -5,7 +5,7 @@
       "destination": "/api/index.py"
     },
     {
-      "source": "/(.*)",
+      "source": "/",
       "destination": "/web/frontend/index.html"
     }
   ]
