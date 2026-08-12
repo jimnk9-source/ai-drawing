@@ -1136,9 +1136,6 @@
                             shapeH: hit.h
                         };
                         updateDeleteBar();
-                        // 도형 서브 메뉴도 함께 표시
-                        const sm = document.getElementById('shape-select-menu');
-                        if (sm) sm.classList.add('show');
                         drawAll();
                         return;
                     }
@@ -1146,6 +1143,7 @@
 
                 if (activeTool === 'shape') {
                     selectedShape = null;
+                    setEditTool('pen'); // 허공 클릭 시 펜 툴로 깔끔하게 돌아가게 함
                     updateDeleteBar();
                     drawAll();
                     return;
@@ -1271,11 +1269,22 @@
             return pts;
         }
 
-        // 선택 도형 삭제 바 표시/숨김
+        // 선택 도형 삭제 바 표시/숨김 및 도형 4종 추가 서브메뉴 표시 동기화
         function updateDeleteBar() {
             const bar = document.getElementById('shape-delete-bar');
-            if (bar) {
-                bar.style.display = selectedShape ? 'flex' : 'none';
+            const sm = document.getElementById('shape-select-menu');
+            if (selectedShape) {
+                if (bar) bar.style.display = 'flex';
+                if (sm) sm.classList.remove('show');
+            } else {
+                if (bar) bar.style.display = 'none';
+                if (sm) {
+                    if (activeTool === 'shape') {
+                        sm.classList.add('show');
+                    } else {
+                        sm.classList.remove('show');
+                    }
+                }
             }
         }
 
@@ -1512,7 +1521,9 @@
 
         function toggleShapeMenu(e) {
             e.stopPropagation();
-            document.getElementById('shape-select-menu').classList.toggle('show');
+            selectedShape = null;
+            setEditTool('shape');
+            updateDeleteBar();
             menuDropdown.classList.remove('show');
             eraserSizeMenu.classList.remove('show');
             if (statusPollInterval) {
