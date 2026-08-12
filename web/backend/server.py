@@ -101,6 +101,16 @@ async def clear_task(req: ClearRequest):
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
+@app.post("/api/delete-task")
+async def delete_task(task_id: int):
+    global tasks_db
+    for i, t in enumerate(tasks_db):
+        if t["task_id"] == task_id:
+            tasks_db.pop(i)
+            print(f">>> SUCCESS: Task {task_id} Deleted")
+            return {"status": "success", "message": f"Task {task_id} deleted"}
+    return JSONResponse(status_code=404, content={"status": "error", "message": "작업을 찾을 수 없습니다."})
+
 @app.post("/api/push-task")
 async def push_task(task: DrawingTask):
     global tasks_db, task_counter

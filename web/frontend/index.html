@@ -485,7 +485,7 @@
 
                 <div class="menu-item danger" onclick="clearServerQueue()"
                     style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; justify-content: center; font-weight: bold;">
-                    🗑️ G-Code 대기열 비우기
+                    🗑️ 모두 삭제
                 </div>
             </div>
         </div>
@@ -787,6 +787,7 @@
                         <div style="display: flex; align-items: center; gap: 5px;">
                             ${badgeHtml}
                             <button ${starAction} style="padding: 4px 6px; min-width: auto; font-size: 14px; background: none; color: ${starColor}; cursor: ${starCursor}; border: none; font-weight: bold;" title="${isSaved ? '보관됨' : '보관'}">${starIcon}</button>
+                            <button onclick="deleteServerTask(event, ${task.task_id})" style="padding: 4px 6px; min-width: auto; font-size: 12px; background: none; color: var(--danger-color); cursor: pointer; border: none; font-weight: bold;" title="삭제">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -882,6 +883,33 @@
                 }
             } catch (err) {
                 console.error("Clear Task Error:", err);
+                alert("삭제 중 오류가 발생했습니다: " + err.message);
+            }
+        }
+
+        // 서버 개별 태스크 삭제 함수
+        async function deleteServerTask(event, taskId) {
+            event.stopPropagation(); // 메뉴 닫힘 방지
+            if (!confirm(`#${taskId} 작업을 삭제하시겠습니까?`)) return;
+
+            try {
+                const response = await fetch(`/api/delete-task?task_id=${taskId}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const errorMsg = await response.text();
+                    throw new Error(`서버 응답 오류 (${response.status}): ${errorMsg}`);
+                }
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    fetchTasksStatus();
+                } else {
+                    throw new Error(result.message || "삭제 실패");
+                }
+            } catch (err) {
+                console.error("Delete Task Error:", err);
                 alert("삭제 중 오류가 발생했습니다: " + err.message);
             }
         }
