@@ -306,17 +306,27 @@
         /* 수정 도구 스타일 */
         #edit-tools {
             display: none;
+            flex-direction: column;
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.9);
-            padding: 8px 16px;
-            border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.93);
+            padding: 8px 14px 8px 14px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.13);
             z-index: 30;
-            gap: 15px;
+            gap: 6px;
+            align-items: stretch;
+        }
+
+        /* 도구 버튼 가로 행 */
+        .tool-row {
+            display: flex;
+            flex-direction: row;
             align-items: center;
+            gap: 10px;
+            justify-content: center;
         }
 
         .edit-tool-btn {
@@ -397,6 +407,55 @@
 
         .eraser-size-menu.show {
             display: flex;
+        }
+
+        .shape-select-menu {
+            position: static;
+            background: rgba(240, 247, 255, 0.95);
+            border-radius: 12px;
+            border: 1px solid rgba(74, 144, 226, 0.2);
+            display: none;
+            flex-direction: row;
+            padding: 5px 8px;
+            gap: 4px;
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .shape-select-menu.show {
+            display: flex;
+        }
+
+        /* 모바일 대응 */
+        @media (max-width: 480px) {
+            #edit-tools {
+                bottom: 14px;
+                padding: 6px 10px;
+                border-radius: 16px;
+                gap: 5px;
+                max-width: calc(100vw - 32px);
+            }
+
+            .edit-tool-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+
+            .shape-select-menu {
+                padding: 4px 6px;
+                gap: 3px;
+            }
+
+            .size-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 15px !important;
+            }
         }
 
         .size-btn {
@@ -507,20 +566,35 @@
 
             <!-- 수정 도구 -->
             <div id="edit-tools">
-                <button class="edit-tool-btn active" id="tool-pen" onclick="setEditTool('pen')" title="펜">✏️</button>
-                <div class="eraser-container">
-                    <button class="edit-tool-btn" id="tool-eraser" onclick="setEditTool('eraser')"
-                        title="지우개">🧽</button>
-                    <button class="eraser-more-btn" id="eraser-more" onclick="toggleEraserSizeMenu(event)"
-                        title="굵기 조절">></button>
-                    <div class="eraser-size-menu" id="eraser-size-menu">
-                        <button class="size-btn" onclick="setEraserSize(5, this)" title="얇게"><span
-                                class="dot dot-sm"></span></button>
-                        <button class="size-btn active" onclick="setEraserSize(15, this)" title="중간"><span
-                                class="dot dot-md"></span></button>
-                        <button class="size-btn" onclick="setEraserSize(30, this)" title="두껍게"><span
-                                class="dot dot-lg"></span></button>
+                <!-- 첫 번째 행: 도구 버튼들 -->
+                <div class="tool-row">
+                    <button class="edit-tool-btn active" id="tool-pen" onclick="setEditTool('pen')" title="펜">✏️</button>
+                    <div class="eraser-container">
+                        <button class="edit-tool-btn" id="tool-eraser" onclick="setEditTool('eraser')"
+                            title="지우개">🧽</button>
+                        <button class="eraser-more-btn" id="eraser-more" onclick="toggleEraserSizeMenu(event)"
+                            title="굵기 조절">></button>
+                        <div class="eraser-size-menu" id="eraser-size-menu">
+                            <button class="size-btn" onclick="setEraserSize(5, this)" title="얇게"><span
+                                    class="dot dot-sm"></span></button>
+                            <button class="size-btn active" onclick="setEraserSize(15, this)" title="중간"><span
+                                    class="dot dot-md"></span></button>
+                            <button class="size-btn" onclick="setEraserSize(30, this)" title="두껍게"><span
+                                    class="dot dot-lg"></span></button>
+                        </div>
                     </div>
+                    <!-- 도형 추가 버튼 -->
+                    <button class="edit-tool-btn" id="tool-shape" onclick="toggleShapeMenu(event)" title="도형">📐</button>
+                </div>
+
+                <!-- 두 번째 행: 도형 서브메뉴 (📐 누르면 아래에 나타남) -->
+                <div class="shape-select-menu" id="shape-select-menu">
+                    <button class="size-btn" onclick="addShape('line')" title="직선" style="font-size: 16px; font-weight: bold;">➖</button>
+                    <button class="size-btn" onclick="addShape('triangle')" title="삼각형" style="font-size: 16px;">▲</button>
+                    <button class="size-btn" onclick="addShape('rect')" title="사각형" style="font-size: 16px;">■</button>
+                    <button class="size-btn" onclick="addShape('circle')" title="원" style="font-size: 16px;">●</button>
+                    <div style="width: 1px; height: 20px; background-color: var(--border-color); margin: 0 2px;"></div>
+                    <button class="size-btn" onclick="deleteSelectedShape()" title="선택된 도형 삭제" style="font-size: 16px; color: var(--danger-color);">🗑️</button>
                 </div>
             </div>
         </div>
@@ -557,10 +631,21 @@
         let animationId = null;
         let currentContours = null;
         let simData = null;
-        let activeTool = 'pen'; // 'pen' or 'eraser'
+        let activeTool = 'pen'; // 'pen', 'eraser', 'shape'
         let activeContours = null; // 수정 중 벡터 데이터 라이브 렌더링용
         let currentContour = null;
         let currentEraseRadius = 15; // 기본 지우개 굵기 (중)
+
+        // 도형 제어 상태 변수
+        let shapes = [];
+        let selectedShape = null;
+        let dragMode = null; // 'move' or 'resize'
+        let resizeHandleIdx = -1; // 0, 1, 2, 3
+        let dragStartPos = null;
+        let shapeIdCounter = 0;
+
+        // 완료 알림 관리
+        let completedTaskNotificationSet = new Set();
 
         // 삼선 메뉴 갱신용 폴링 타이머
         let statusPollInterval = null;
@@ -743,6 +828,15 @@
             try {
                 const response = await fetch('/api/tasks-status');
                 const tasks = await response.json();
+                
+                // 완료 알림 브로드캐스트 감지
+                tasks.forEach(task => {
+                    if (task.status === 'complete' && !completedTaskNotificationSet.has(task.task_id)) {
+                        completedTaskNotificationSet.add(task.task_id);
+                        alert(`🎉 작업 #${task.task_id} 출력이 완료되었습니다!\n플로터가 자동으로 원점으로 복귀하였습니다.`);
+                    }
+                });
+
                 renderStatusList(tasks);
             } catch (e) {
                 console.error("Fetch Status Error:", e);
@@ -849,6 +943,8 @@
         window.addEventListener('click', () => {
             menuDropdown.classList.remove('show');
             eraserSizeMenu.classList.remove('show');
+            const sm = document.getElementById('shape-select-menu');
+            if (sm) sm.classList.remove('show');
             if (statusPollInterval) {
                 clearInterval(statusPollInterval);
                 statusPollInterval = null;
@@ -1008,6 +1104,26 @@
 
             if (mode === 'editing' || mode === 'drawing') {
                 const pos = toSimCoords(x, y);
+
+                if (activeTool === 'shape') {
+                    const hit = checkShapeHit(x, y);
+                    if (hit) {
+                        selectedShape = hit;
+                        dragStartPos = {
+                            x: x,
+                            y: y,
+                            shapeX: hit.x,
+                            shapeY: hit.y,
+                            shapeW: hit.w,
+                            shapeH: hit.h
+                        };
+                    } else {
+                        selectedShape = null; // 허공 클릭 시 해제
+                    }
+                    drawAll();
+                    return;
+                }
+
                 if (activeTool === 'pen') {
                     currentContour = [pos];
                     activeContours.push(currentContour);
@@ -1027,6 +1143,40 @@
         function drawTo(x, y) {
             if (mode === 'editing' || mode === 'drawing') {
                 const pos = toSimCoords(x, y);
+
+                if (activeTool === 'shape' && selectedShape && dragStartPos) {
+                    const dx = x - dragStartPos.x;
+                    const dy = y - dragStartPos.y;
+                    const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
+                    const simDx = dx / scale;
+                    const simDy = dy / scale;
+
+                    if (dragMode === 'move') {
+                        selectedShape.x = dragStartPos.shapeX + simDx;
+                        selectedShape.y = dragStartPos.shapeY + simDy;
+                    } else if (dragMode === 'resize') {
+                        if (resizeHandleIdx === 0) { // Top-Left
+                            selectedShape.x = dragStartPos.shapeX + simDx;
+                            selectedShape.y = dragStartPos.shapeY + simDy;
+                            selectedShape.w = dragStartPos.shapeW - simDx;
+                            selectedShape.h = dragStartPos.shapeH - simDy;
+                        } else if (resizeHandleIdx === 1) { // Top-Right
+                            selectedShape.y = dragStartPos.shapeY + simDy;
+                            selectedShape.w = dragStartPos.shapeW + simDx;
+                            selectedShape.h = dragStartPos.shapeH - simDy;
+                        } else if (resizeHandleIdx === 2) { // Bottom-Right
+                            selectedShape.w = dragStartPos.shapeW + simDx;
+                            selectedShape.h = dragStartPos.shapeH + simDy;
+                        } else if (resizeHandleIdx === 3) { // Bottom-Left
+                            selectedShape.x = dragStartPos.shapeX + simDx;
+                            selectedShape.w = dragStartPos.shapeW - simDx;
+                            selectedShape.h = dragStartPos.shapeH + simDy;
+                        }
+                    }
+                    drawAll();
+                    return;
+                }
+
                 if (activeTool === 'pen' && currentContour) {
                     const lastPt = currentContour[currentContour.length - 1];
                     if (lastPt) {
@@ -1059,6 +1209,7 @@
             const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
             const eraseRadius = currentEraseRadius / scale; // 동적 지우개 반경
 
+            // 1. 선(contour) 지우기
             let newContours = [];
             let erased = false;
 
@@ -1082,18 +1233,40 @@
             }
             if (erased) {
                 activeContours = newContours;
-                renderContours(activeContours, simCtx);
+            }
+
+            // 2. 도형(shape) 영역 지우기 - 지우개 원이 도형의 AABB(bounding box)와 겹치면 삭제
+            const prevShapeCount = shapes.length;
+            shapes = shapes.filter(s => {
+                // 도형의 bounding box (simData 좌표계)
+                const minX = Math.min(s.x, s.x + s.w) - eraseRadius;
+                const maxX = Math.max(s.x, s.x + s.w) + eraseRadius;
+                const minY = Math.min(s.y, s.y + s.h) - eraseRadius;
+                const maxY = Math.max(s.y, s.y + s.h) + eraseRadius;
+                const inBox = pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY;
+                if (inBox && selectedShape && selectedShape.id === s.id) {
+                    selectedShape = null; // 선택 해제
+                }
+                return !inBox; // 범위 내에 있으면 삭제
+            });
+
+            if (erased || shapes.length !== prevShapeCount) {
+                drawAll();
             }
         }
 
         function stopDrawing() {
             isDrawing = false;
+            if (activeTool === 'shape') {
+                dragMode = null;
+                dragStartPos = null;
+                return;
+            }
             if ((mode === 'editing' || mode === 'drawing') && activeTool === 'pen' && currentContour && currentContour.length < 2) {
                 activeContours.pop(); // 너무 짧은 점 제거
             }
             if (mode === 'editing' || mode === 'drawing') {
-                // 그린 내용을 시뮬레이션 캔버스에 합치고 inputCanvas 초기화
-                renderContours(activeContours, simCtx);
+                drawAll();
                 inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
             } else {
                 inputCtx.globalCompositeOperation = 'source-over';
@@ -1118,6 +1291,10 @@
         function setMode(newMode) {
             mode = newMode;
             workArea.className = 'work-area';
+
+            // 모드 전환 시 도형 초기화
+            shapes = [];
+            selectedShape = null;
 
             if (mode === 'idle') {
                 btnLeft.textContent = '이미지 업로드';
@@ -1220,10 +1397,26 @@
             }
         }
 
+        function toggleShapeMenu(e) {
+            e.stopPropagation();
+            document.getElementById('shape-select-menu').classList.toggle('show');
+            menuDropdown.classList.remove('show');
+            eraserSizeMenu.classList.remove('show');
+            if (statusPollInterval) {
+                clearInterval(statusPollInterval);
+                statusPollInterval = null;
+            }
+        }
+
         function setEditTool(tool) {
             activeTool = tool;
             toolPen.classList.toggle('active', tool === 'pen');
             toolEraser.classList.toggle('active', tool === 'eraser');
+            
+            const toolShape = document.getElementById('tool-shape');
+            if (toolShape) {
+                toolShape.classList.toggle('active', tool === 'shape');
+            }
 
             if (tool === 'eraser') {
                 eraserMoreBtn.style.display = 'block';
@@ -1231,17 +1424,36 @@
                 eraserMoreBtn.style.display = 'none';
                 eraserSizeMenu.classList.remove('show');
             }
+
+            if (tool !== 'shape') {
+                selectedShape = null;
+                const sm = document.getElementById('shape-select-menu');
+                if (sm) sm.classList.remove('show');
+                drawAll();
+            }
+        }
+
+        function drawAll() {
+            if (!simData) return;
+            // 1. 기존 선 렌더링
+            renderContours(activeContours, simCtx);
+            // 2. 추가된 도형 렌더링
+            renderShapes(shapes, simCtx);
         }
 
         function renderContours(contours, ctx) {
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             if (!simData) return;
+            drawContoursOnly(contours, ctx);
+        }
+
+        function drawContoursOnly(contours, ctx) {
             const scale = Math.min(ctx.canvas.width / simData.width, ctx.canvas.height / simData.height);
             const offsetX = (ctx.canvas.width - simData.width * scale) / 2;
             const offsetY = (ctx.canvas.height - simData.height * scale) / 2;
 
             ctx.strokeStyle = "#4a90e2";
-            ctx.lineWidth = 2; // 출력 굵기 고정
+            ctx.lineWidth = (lastInputMode === 'drawing') ? 5 : 2;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
@@ -1256,16 +1468,205 @@
             });
         }
 
+        function renderShapes(shapesList, ctx) {
+            if (!simData) return;
+            const scale = Math.min(ctx.canvas.width / simData.width, ctx.canvas.height / simData.height);
+            const offsetX = (ctx.canvas.width - simData.width * scale) / 2;
+            const offsetY = (ctx.canvas.height - simData.height * scale) / 2;
+
+            shapesList.forEach(s => {
+                const sx = s.x * scale + offsetX;
+                const sy = s.y * scale + offsetY;
+                const sw = s.w * scale;
+                const sh = s.h * scale;
+
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "#4a90e2";
+                ctx.fillStyle = "rgba(74, 144, 226, 0.05)";
+
+                ctx.beginPath();
+                if (s.type === 'rect') {
+                    ctx.rect(sx, sy, sw, sh);
+                    ctx.stroke();
+                    ctx.fill();
+                } else if (s.type === 'circle') {
+                    const rx = Math.abs(sw / 2);
+                    const ry = Math.abs(sh / 2);
+                    ctx.ellipse(sx + sw/2, sy + sh/2, rx, ry, 0, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    ctx.fill();
+                } else if (s.type === 'triangle') {
+                    ctx.moveTo(sx + sw/2, sy);
+                    ctx.lineTo(sx + sw, sy + sh);
+                    ctx.lineTo(sx, sy + sh);
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.fill();
+                } else if (s.type === 'line') {
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(sx + sw, sy + sh);
+                    ctx.stroke();
+                }
+
+                // 선택 영역 활성화 점선 가이드 상자 및 조절자
+                if (selectedShape && selectedShape.id === s.id) {
+                    ctx.save();
+                    ctx.strokeStyle = "#ff4d4f";
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(sx - 4, sy - 4, sw + 8, sh + 8);
+                    ctx.restore();
+
+                    ctx.fillStyle = "#ff4d4f";
+                    const handles = [
+                        {x: sx, y: sy},
+                        {x: sx + sw, y: sy},
+                        {x: sx + sw, y: sy + sh},
+                        {x: sx, y: sy + sh}
+                    ];
+                    handles.forEach(h => {
+                        ctx.fillRect(h.x - 5, h.y - 5, 10, 10);
+                    });
+                }
+            });
+        }
+
+        function checkShapeHit(clickX, clickY) {
+            if (!simData) return null;
+            const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
+            const offsetX = (simCanvas.width - simData.width * scale) / 2;
+            const offsetY = (simCanvas.height - simData.height * scale) / 2;
+
+            if (selectedShape) {
+                const s = selectedShape;
+                const sx = s.x * scale + offsetX;
+                const sy = s.y * scale + offsetY;
+                const sw = s.w * scale;
+                const sh = s.h * scale;
+
+                const handles = [
+                    {x: sx, y: sy},
+                    {x: sx + sw, y: sy},
+                    {x: sx + sw, y: sy + sh},
+                    {x: sx, y: sy + sh}
+                ];
+                for (let i = 0; i < handles.length; i++) {
+                    if (Math.hypot(clickX - handles[i].x, clickY - handles[i].y) < 12) {
+                        dragMode = 'resize';
+                        resizeHandleIdx = i;
+                        return selectedShape;
+                    }
+                }
+            }
+
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                const s = shapes[i];
+                const sx = s.x * scale + offsetX;
+                const sy = s.y * scale + offsetY;
+                const sw = s.w * scale;
+                const sh = s.h * scale;
+
+                const minX = Math.min(sx, sx + sw);
+                const maxX = Math.max(sx, sx + sw);
+                const minY = Math.min(sy, sy + sh);
+                const maxY = Math.max(sy, sy + sh);
+
+                if (clickX >= minX - 10 && clickX <= maxX + 10 && clickY >= minY - 10 && clickY <= maxY + 10) {
+                    dragMode = 'move';
+                    return s;
+                }
+            }
+            return null;
+        }
+
+        function addShape(type) {
+            if (!simData) return;
+            setEditTool('shape');
+
+            const defaultW = 80;
+            const defaultH = 80;
+            const defaultX = (simData.width - defaultW) / 2;
+            const defaultY = (simData.height - defaultH) / 2;
+
+            shapeIdCounter++;
+            const newShape = {
+                id: shapeIdCounter,
+                type: type,
+                x: defaultX,
+                y: defaultY,
+                w: defaultW,
+                h: defaultH
+            };
+
+            shapes.push(newShape);
+            selectedShape = newShape;
+
+            const sm = document.getElementById('shape-select-menu');
+            if (sm) sm.classList.remove('show');
+            drawAll();
+        }
+
+        function deleteSelectedShape() {
+            if (selectedShape) {
+                shapes = shapes.filter(s => s.id !== selectedShape.id);
+                selectedShape = null;
+                drawAll();
+            } else {
+                alert("삭제할 도형을 먼저 선택해 주세요.");
+            }
+        }
+
+        function convertShapesToContours() {
+            const output = [];
+            shapes.forEach(s => {
+                const pts = [];
+                if (s.type === 'rect') {
+                    // 사각형 닫힌 루프 생성
+                    pts.push({ x: s.x, y: s.y });
+                    pts.push({ x: s.x + s.w, y: s.y });
+                    pts.push({ x: s.x + s.w, y: s.y + s.h });
+                    pts.push({ x: s.x, y: s.y + s.h });
+                    pts.push({ x: s.x, y: s.y });
+                } else if (s.type === 'circle') {
+                    // 원 36분할 벡터 생성
+                    const cx = s.x + s.w/2;
+                    const cy = s.y + s.h/2;
+                    const rx = Math.abs(s.w/2);
+                    const ry = Math.abs(s.h/2);
+                    for (let i = 0; i <= 36; i++) {
+                        const rad = (i * 10 * Math.PI) / 180;
+                        pts.push({ x: cx + rx * Math.cos(rad), y: cy + ry * Math.sin(rad) });
+                    }
+                } else if (s.type === 'triangle') {
+                    // 삼각형 생성
+                    pts.push({ x: s.x + s.w/2, y: s.y });
+                    pts.push({ x: s.x + s.w, y: s.y + s.h });
+                    pts.push({ x: s.x, y: s.y + s.h });
+                    pts.push({ x: s.x + s.w/2, y: s.y });
+                } else if (s.type === 'line') {
+                    // 직선 생성
+                    pts.push({ x: s.x, y: s.y });
+                    pts.push({ x: s.x + s.w, y: s.y + s.h });
+                }
+                if (pts.length > 0) {
+                    output.push(pts);
+                }
+            });
+            return output;
+        }
+
         function startEditing() {
             if (!simData) return;
             if (animationId) skipSimulation();
 
             // 1. 현재 벡터 데이터를 딥카피하여 수정용 배열로 준비
             activeContours = JSON.parse(JSON.stringify(simData.contours));
+            shapes = [];
+            selectedShape = null;
 
             // 2. 화면 초기화 후 현재 벡터 렌더링
             inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
-            renderContours(activeContours, simCtx);
+            drawAll();
 
             setMode('editing');
         }
@@ -1275,6 +1676,12 @@
             const progressBar = document.getElementById('progress-bar');
             progressContainer.style.display = 'block';
             progressBar.style.width = '30%';
+
+            // 도형 변환 병합
+            const shapesContours = convertShapesToContours();
+            activeContours = activeContours.concat(shapesContours);
+            shapes = [];
+            selectedShape = null;
 
             // 길이가 2 미만인 점들은 무시
             simData.contours = activeContours.filter(c => c.length > 1);
@@ -1364,6 +1771,12 @@
             const progressBar = document.getElementById('progress-bar');
             progressContainer.style.display = 'block';
             progressBar.style.width = '30%';
+
+            // 도형 변환 병합
+            const shapesContours = convertShapesToContours();
+            activeContours = activeContours.concat(shapesContours);
+            shapes = [];
+            selectedShape = null;
 
             // 길이가 2 미만인 점들은 무시
             simData.contours = activeContours.filter(c => c.length > 1);
