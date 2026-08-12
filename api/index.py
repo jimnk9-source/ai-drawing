@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from dotenv import load_dotenv
 import os
 import cv2
@@ -28,12 +28,23 @@ tasks_db = []
 task_counter = 0
 
 # 경로 설정 (Vercel 배포 환경 고려)
+# Vercel 서버리스 환경: __file__ 기준으로 여러 상대 경로 후보를 시도
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(BASE_DIR, "../web/frontend")
-if not os.path.exists(FRONTEND_DIR):
-    FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
-if not os.path.exists(FRONTEND_DIR):
-    FRONTEND_DIR = os.path.join(BASE_DIR, "../../web/frontend")
+
+FRONTEND_CANDIDATES = [
+    os.path.join(BASE_DIR, "../web/frontend"),
+    os.path.join(BASE_DIR, "web/frontend"),
+    os.path.join(BASE_DIR, "../frontend"),
+    os.path.join(BASE_DIR, "frontend"),
+    "/var/task/web/frontend",  # Vercel Lambda 절대 경로
+]
+FRONTEND_DIR = None
+for candidate in FRONTEND_CANDIDATES:
+    if os.path.exists(os.path.join(candidate, "index.html")):
+        FRONTEND_DIR = candidate
+        break
+if FRONTEND_DIR is None:
+    FRONTEND_DIR = FRONTEND_CANDIDATES[0]  # fallback
 
 load_dotenv()
 
@@ -68,12 +79,22 @@ def generate_gcode(contours, img_w, img_h):
     gcode.append("G0 X0 Y0 ; Return to home")
     return "\n".join(gcode)
 
-@app.get("/") 
+@app.get("/")
 async def read_root():
+    """루트 접속 시 프론트엔드 index.html 서빙 (Vercel 호환)"""
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"status": "error", "message": f"Frontend index.html not found at {index_path}"}
+        with open(index_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content)
+    # 경로별 디버깅 정보 반환
+    debug_info = {
+        "error": "index.html not found",
+        "tried_path": index_path,
+        "base_dir": BASE_DIR,
+        "candidates_checked": FRONTEND_CANDIDATES,
+    }
+    return JSONResponse(content=debug_info, status_code=404)
 @app.post("/api/clear-task")
 async def clear_task(req: ClearRequest):
     global tasks_db
