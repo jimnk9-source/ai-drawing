@@ -353,7 +353,7 @@
             justify-content: center;
             font-size: 1.4rem;
             border: 1.5px solid transparent;
-            background: #f8fafc;
+            background: transparent;
             color: #475569;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -373,6 +373,16 @@
             border-color: var(--primary-color);
             color: var(--primary-color);
             box-shadow: 0 4px 12px rgba(74, 144, 226, 0.2);
+        }
+
+        /* 툴바 구분선 (펜/지우개/도형  ↔  undo/redo/reset 사이) */
+        .toolbar-divider {
+            width: 32px;
+            height: 1px;
+            background: #e2e8f0;
+            border-radius: 1px;
+            margin: 2px 0;
+            flex-shrink: 0;
         }
 
         /* 가로모드 지우개/도형 선택 팝업 트레이 (좌측 말풍선 툴팁 형태) */
@@ -407,25 +417,13 @@
             align-items: center;
         }
 
-        .tool-top-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background: #f8fafc;
-            padding: 8px 4px;
-            border-radius: 20px;
-            border: 1px solid #e2e8f0;
-            width: 100%;
-            align-items: center;
-        }
-
         .tool-action-btn {
             width: 44px;
             height: 44px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: transparent;
+            border: none;
             border-radius: 14px;
-            color: #475569;
+            color: #94a3b8;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -559,30 +557,10 @@
         .shape-picker-panel.show { display: flex; }
 
         .shape-picker-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            background: #f8fafc;
-            font-size: 1.1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.15s;
-        }
-
-        .shape-picker-btn:hover {
-            background: #eff6ff;
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-        }
-
-        .shape-picker-btn {
             width: 42px;
             height: 42px;
-            border: 1.5px solid #e2e8f0;
-            background: #fff;
+            border: none;
+            background: transparent;
             border-radius: 12px;
             font-size: 1.2rem;
             color: #475569;
@@ -595,7 +573,6 @@
 
         .shape-picker-btn:hover {
             background: #f0f7ff;
-            border-color: var(--primary-color);
             color: var(--primary-color);
         }
 
@@ -604,39 +581,7 @@
             gap: 12px;
         }
 
-        .tools-column {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
 
-        .tool-card-btn {
-            background: #ffffff;
-            border: 2px solid #e2e8f0;
-            border-radius: 18px;
-            padding: 14px 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #334155;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .tool-card-btn:hover {
-            border-color: #cbd5e1;
-            background: #f8fafc;
-        }
-
-        .tool-card-btn.active {
-            border-color: var(--primary-color);
-            background: #f0f7ff;
-            color: var(--primary-color);
-            box-shadow: 0 4px 12px rgba(0, 132, 255, 0.15);
-        }
 
         .shapes-panel-column {
             width: 52px;
@@ -1029,15 +974,11 @@
                 flex: 1 !important;
             }
 
-            .tool-top-actions {
-                display: flex !important;
-                flex-direction: row !important;
-                flex: 1 !important;
-                padding: 4px !important;
-                border-radius: 14px !important;
-                gap: 3px !important;
-                justify-content: space-around !important;
-                width: auto !important;
+            .toolbar-divider {
+                width: 1px !important;
+                height: 28px !important;
+                background: #e2e8f0 !important;
+                margin: 0 2px !important;
             }
 
             .tool-action-btn {
@@ -1129,9 +1070,8 @@
 
             <!-- 우측(가로) / 하단(세로) 툴바 패널 -->
             <aside class="toolbar-panel">
-                <!-- 1. 펜/지우개/도형 버튼 + 팝업 -->
+                <!-- 1. 펜/지우개/도형 + 구분선 + undo/redo/reset 버튼 통합 -->
                 <div class="tools-row-container">
-                    <!-- 버튼 행 -->
                     <div class="tools-btn-row">
                         <div class="tools-column">
                             <button class="tool-card-btn active" id="tool-pen" onclick="setEditTool('pen')" title="펜">
@@ -1142,6 +1082,19 @@
                             </button>
                             <button class="tool-card-btn" id="tool-shape" onclick="setEditTool('shape')" title="도형">
                                 <span>📐</span>
+                            </button>
+
+                            <!-- 구분선 -->
+                            <div class="toolbar-divider"></div>
+
+                            <button class="tool-action-btn" onclick="undoAction()" title="실행 취소">
+                                <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+                            </button>
+                            <button class="tool-action-btn" onclick="redoAction()" title="다시 실행">
+                                <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+                            </button>
+                            <button class="tool-action-btn" onclick="resetCanvas()" title="전체 초기화">
+                                <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                             </button>
                         </div>
                     </div>
@@ -1171,21 +1124,8 @@
                     </div>
                 </div>
 
-                <!-- 2. 하단 액션 & 컨트롤 버튼 영역 -->
+                <!-- 2. 완료/수정/전송 버튼 영역 -->
                 <div class="bottom-controls-row">
-                    <!-- SVG 액션 버튼: 실행취소 / 다시실행 / 전체초기화 -->
-                    <div class="tool-top-actions" id="tool-top-actions">
-                        <button class="tool-action-btn" onclick="undoAction()" title="실행 취소">
-                            <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
-                        </button>
-                        <button class="tool-action-btn" onclick="redoAction()" title="다시 실행">
-                            <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
-                        </button>
-                        <button class="tool-action-btn" onclick="resetCanvas()" title="전체 초기화">
-                            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                        </button>
-                    </div>
-
                     <div class="action-btn-group" id="action-btn-group" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
                         <button class="btn-confirm-complete" id="btn-edit-action" onclick="startEditing()" style="display: none; width: 100%; background: #64748b; color: #fff;">
                             수정
@@ -2298,22 +2238,15 @@
             const btnEdit = document.getElementById('btn-edit-action');
             const btnComplete = document.getElementById('btn-complete-action');
             const toolsRowContainer = document.querySelector('.tools-row-container');
-            const toolTopActions = document.getElementById('tool-top-actions');
 
             if (mode === 'simulating') {
-                // 완료 / 시뮬레이션 상태일 때: 펜, 지우개, 도형, Undo, Redo, Reset 버튼 숨기기
+                // 완료 후: 도구 전체 행 숨기기 + 수정 버튼 노출 + '전송' 텍스트
                 if (toolsRowContainer) toolsRowContainer.style.display = 'none';
-                if (toolTopActions) toolTopActions.style.display = 'none';
-
-                // 수정 버튼을 전송 버튼 위에 표시하고, 하단 우측 버튼을 '전송'으로 변경
                 if (btnEdit) btnEdit.style.display = 'block';
                 if (btnComplete) btnComplete.textContent = '전송';
             } else {
-                // 드로잉 / 편집 모드 일 때: 툴바와 Undo/Redo/Reset 다시 표시
+                // 그리기/편집 중: 도구 전체 행 다시 표시 + 수정 버튼 숨기기 + '완료' 텍스트
                 if (toolsRowContainer) toolsRowContainer.style.display = 'flex';
-                if (toolTopActions) toolTopActions.style.display = 'flex';
-
-                // 수정 버튼은 숨기고 버튼 텍스트를 '완료'로 복원
                 if (btnEdit) btnEdit.style.display = 'none';
                 if (btnComplete) btnComplete.textContent = '완료';
             }
