@@ -84,6 +84,10 @@ def generate_gcode(contours, img_w, img_h):
     gcode.append("G0 X0 Y0 ; Return to home")
     return "\n".join(gcode)
 
+# --- 정적 파일 서빙 ---
+# /frontend 경로로 CSS, 이미지 등 정적 자산을 서빙
+app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+
 # --- API 정의 시작 ---
 
 @app.get("/")
