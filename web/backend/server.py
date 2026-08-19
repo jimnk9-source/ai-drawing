@@ -186,17 +186,22 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
         if is_drawing_bool:
-            # 직접 그린 그림이나 수정된 그림의 경우: 단순 이진화로 선의 형태를 최대한 보존
-            # Canny나 AdaptiveThreshold를 쓰면 선의 안팎이 다 따져서 이중으로 그려질 수 있음
-            _, combined_edges = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
+            # 직접 그린 그림이나 수정된 그림의 경우: 단순 이진화 후 세선화(thinning) 적용하여 단일 선 추출
+            _, thresh_img = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
+            # 선의 이중 윤곽 방지를 위한 모폴로지 얇게 만들기 (Thinning)
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+            combined_edges = cv2.morphologyEx(thresh_img, cv2.MORPH_CLOSE, kernel)
         else:
-            # 일반 사진의 경우: 기존 AI 드로잉 스타일(Canny + Adaptive) 적용
+            # 일반 사진의 경우: Canny 선 추출 후 굵은 이중선을 단일 스켈레톤 선으로 정돈
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
             gray_clahe = clahe.apply(gray)
-            blurred = cv2.bilateralFilter(gray_clahe, 11, 150, 150)
-            edged = cv2.Canny(blurred, 50, 150) 
-            thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4)
-            combined_edges = cv2.bitwise_or(edged, thresh)
+            blurred = cv2.bilateralFilter(gray_clahe, 9, 75, 75)
+            edged = cv2.Canny(blurred, 60, 140)
+            
+            # Canny의 외곽 2줄 선을 1줄 단일 선으로 축소 (모폴로지 얇게 적용)
+            kernel = np.ones((2,2), np.uint8)
+            combined_edges = cv2.morphologyEx(edged, cv2.MORPH_GRADIENT, kernel)
+            combined_edges = cv2.threshold(combined_edges, 1, 255, cv2.THRESH_BINARY)[1]
 
         contours, _ = cv2.findContours(combined_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
         
@@ -253,13 +258,28 @@ async def process_image(file: UploadFile = File(...), is_drawing: str = Form("fa
                     optimized_contours.append(current_path)
                     current_path = raw_contours.pop(0)
             optimized_contours.append(current_path)
+
+        # 중복선 제거 및 단일 라인 최적화
+        final_contours = []
+        for path in optimized_contours:
+            if len(path) < 2: continue
+            is_duplicate = False
+            for existing in final_contours:
+                if len(existing) < 2: continue
+                d_start = ((path[0]['x'] - existing[0]['x'])**2 + (path[0]['y'] - existing[0]['y'])**2)**0.5
+                d_end = ((path[-1]['x'] - existing[-1]['x'])**2 + (path[-1]['y'] - existing[-1]['y'])**2)**0.5
+                if d_start < 5 and d_end < 5:
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                final_contours.append(path)
         
         # 수정된 G-Code 생성 호출 (w, h 파라미터 추가)
-        gcode = generate_gcode(optimized_contours, w, h)
+        gcode = generate_gcode(final_contours, w, h)
         
         _, buffer = cv2.imencode('.jpg', img)
         img_str = base64.b64encode(buffer).decode('utf-8')
-        return {"width": w, "height": h, "contours": optimized_contours, "image": img_str, "gcode": gcode}
+        return {"width": w, "height": h, "contours": final_contours, "image": img_str, "gcode": gcode}
     except Exception as e:
         return {"error": str(e)}
 
