@@ -841,7 +841,7 @@
 
         .drag-handle {
             cursor: grab;
-            padding: 8px 6px;
+            padding: 18px 6px;
             margin-right: 4px;
             color: #94a3b8;
             font-size: 1.1rem;
@@ -849,6 +849,8 @@
             user-select: none;
             -webkit-user-select: none;
             -webkit-touch-callout: none;
+            display: flex;
+            align-items: center;
         }
 
         .card-menu-popover {
@@ -2388,15 +2390,18 @@
 
                 // ─── 터치 이벤트 (모바일 터치 완벽 반응) ───
                 card.addEventListener('touchstart', (e) => {
+                    // 항상 preventDefault: Android 오래 누르기 시 컨텍스트메뉴/텍스트선택 제스처가
+                    // touchcancel을 발생시켜 드래그 상태를 리셋하는 현상 원천 차단
+                    e.preventDefault();
+
                     const touch = e.touches[0];
                     startX = touch.clientX;
                     startY = touch.clientY;
 
                     const target = document.elementFromPoint(startX, startY);
-                    
-                    // 우측 핸들(⋮⋮)을 터치하면 기다림 없이 0초 즉시 드래그 활성화!
+
+                    // 왼쪽 핸들(⋮⋮)을 터치하면 기다림 없이 0초 즉시 드래그 활성화!
                     if (handle && (handle.contains(target) || target === handle)) {
-                        e.preventDefault();
                         activateDrag();
                     } else {
                         // 본문 꾹 누르기 (350ms)
