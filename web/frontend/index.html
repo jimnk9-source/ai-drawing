@@ -2390,18 +2390,26 @@
 
                 // ─── 터치 이벤트 (모바일 터치 완벽 반응) ───
                 card.addEventListener('touchstart', (e) => {
-                    // 항상 preventDefault: Android 오래 누르기 시 컨텍스트메뉴/텍스트선택 제스처가
-                    // touchcancel을 발생시켜 드래그 상태를 리셋하는 현상 원천 차단
-                    e.preventDefault();
+                    const target = e.target;
+                    // 별표 버튼, 삼점 메뉴 버튼, 팝업 메뉴 등 클릭 요소 터치 시 드래그 감지 완전 우회!
+                    if (target && target.closest('.star-btn, .more-btn, .card-menu-popover, .card-menu-item, button')) {
+                        return;
+                    }
 
                     const touch = e.touches[0];
                     startX = touch.clientX;
                     startY = touch.clientY;
 
-                    const target = document.elementFromPoint(startX, startY);
+                    const pointTarget = document.elementFromPoint(startX, startY);
+                    if (pointTarget && pointTarget.closest('.star-btn, .more-btn, .card-menu-popover, .card-menu-item, button')) {
+                        return;
+                    }
+
+                    // 카드의 드래그 영역/본문 터치 시에만 브라우저 스크롤/터치 캔슬 방지
+                    e.preventDefault();
 
                     // 왼쪽 핸들(⋮⋮)을 터치하면 기다림 없이 0초 즉시 드래그 활성화!
-                    if (handle && (handle.contains(target) || target === handle)) {
+                    if (handle && (handle.contains(pointTarget) || pointTarget === handle)) {
                         activateDrag();
                     } else {
                         // 본문 꾹 누르기 (350ms)
@@ -2412,6 +2420,10 @@
                 }, { passive: false });
 
                 card.addEventListener('touchmove', (e) => {
+                    if (e.target && e.target.closest('.star-btn, .more-btn, .card-menu-popover, .card-menu-item, button')) {
+                        return;
+                    }
+
                     const touch = e.touches[0];
                     const moveX = touch.clientX;
                     const moveY = touch.clientY;
@@ -2439,7 +2451,7 @@
                     }
                 }, { passive: false });
 
-                card.addEventListener('touchend', () => {
+                card.addEventListener('touchend', (e) => {
                     cancelLongPress();
                     if (isDragReady && draggedCard === card) {
                         updateOrderAndSave();
@@ -2491,7 +2503,7 @@
 
         // 서버 대기열 초기화 함수
         async function clearServerQueue() {
-            const ok = await showConfirm('별표(★) 보관된 그림을 제외하고 전체 삭제하시겠습니까?', true);
+            const ok = await showConfirm('별표(★)된 그림을 제외하고 모두 삭제합니다.', true);
             if (!ok) return;
 
             try {
@@ -2511,7 +2523,16 @@
 
                 const result = await response.json();
                 if (result.status === 'success') {
-                    await showAlert(result.message || '삭제 완료!');
+                    // 로컬 캐시 동기화: 별표 보관된 항목만 남기고 로컬 캐시 업데이트
+                    const localData = localStorage.getItem('vico_cached_tasks');
+                    if (localData) {
+                        try {
+                            const cached = JSON.parse(localData);
+                            const updatedCached = cached.filter(t => savedIds.includes(t.task_id) || t.status === 'drawing');
+                            localStorage.setItem('vico_cached_tasks', JSON.stringify(updatedCached));
+                        } catch (e) {}
+                    }
+                    await showAlert('삭제가 완료되었습니다.');
                     fetchTasksStatus();
                 } else {
                     throw new Error(result.message || '삭제 실패');
