@@ -1482,13 +1482,21 @@
         let currentView = 'landing'; // 'landing', 'workspace', 'history'
         let zoomLevel = 100;
 
-        // 전체화면 토글 함수 (모든 기기 native fullscreen, 중복 진입 방지)
+        // 전체화면 토글 함수 (navigationUI: 'hide'로 안내바 빠른 소멸 유도)
         let _fsRequesting = false;
         function toggleFullScreen() {
-            if (_fsRequesting) return; // 중복 호출 방지 (토스트 반복 표시 원인 제거)
+            if (_fsRequesting) return;
             if (!document.fullscreenElement) {
                 _fsRequesting = true;
-                document.documentElement.requestFullscreen().catch(err => {
+                // navigationUI: 'hide' — 브라우저에게 네비게이션 UI(안내 토스트 포함)를
+                // 최대한 빨리 숨기도록 힌트를 줌
+                const fsOpts = { navigationUI: 'hide' };
+                document.documentElement.requestFullscreen(fsOpts).then(() => {
+                    // 진입 직후 캔버스에 focus → 브라우저가 "사용자 인터랙션 감지"로
+                    // 안내바를 더 빨리 내리도록 유도
+                    const c = document.getElementById('input-canvas');
+                    if (c) c.focus();
+                }).catch(err => {
                     console.error("Fullscreen error:", err);
                 }).finally(() => {
                     _fsRequesting = false;
@@ -1498,7 +1506,7 @@
             }
         }
 
-        // fullscreenchange: 아이콘 동기화 + 캔버스 리사이즈 (단 한 번만 처리)
+        // fullscreenchange: 캔버스 리사이즈
         document.addEventListener('fullscreenchange', () => {
             setTimeout(resizeCanvas, 120);
         });
