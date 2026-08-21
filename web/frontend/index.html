@@ -825,7 +825,8 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
             position: relative;
             user-select: none;
-            touch-action: pan-y;
+            -webkit-user-select: none;
+            touch-action: manipulation;
             transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
         }
 
@@ -835,6 +836,19 @@
             border-color: #6366f1;
             box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
             transform: scale(0.98);
+            touch-action: none !important;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            padding: 8px 6px;
+            margin-right: 4px;
+            color: #94a3b8;
+            font-size: 1.1rem;
+            touch-action: none !important;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
         }
 
         .card-menu-popover {
@@ -2358,9 +2372,9 @@
                         longPressTimer = setTimeout(() => {
                             activateDrag();
                             draggedCard = card;
-                        }, 450);
+                        }, 400);
                     }
-                }, { passive: true });
+                }, { passive: false });
 
                 card.addEventListener('touchmove', (e) => {
                     if (!isDragReady || !draggedCard) {
@@ -2368,12 +2382,12 @@
                         return;
                     }
 
-                    // 터치 드래그 중 스크롤 방지
+                    // 터치 드래그 중 브라우저 스크롤 완전 방지
                     if (e.cancelable) e.preventDefault();
                     isTouchDragging = true;
 
                     const touch = e.touches[0];
-                    // 터치 위치 아래의 HTML 요소 찾기
+                    // 터치 좌표 기반으로 현재 위치 아래의 history-card 찾기
                     const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
                     if (!targetEl) return;
 
