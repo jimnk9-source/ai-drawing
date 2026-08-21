@@ -1067,40 +1067,56 @@
             display: block !important;
         }
 
-        /* 📱 세로 화면 (모바일 및 태블릿 세로 뷰) 반응형 매칭 (사용자 참고 디자인) */
+        /* 📱 세로 화면 (모바일 및 태블릿 세로 뷰) 반응형 매칭 */
         @media (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: 0;
             }
 
             .app-card {
-                padding: 14px;
-                border-radius: 20px;
+                padding: 10px 12px;
+                border-radius: 0;
                 max-width: 100%;
+                height: 100dvh;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            .app-header {
+                margin-bottom: 8px;
+                flex-shrink: 0;
             }
 
             .workspace-view {
                 flex-direction: column !important;
-                gap: 12px !important;
-                padding-bottom: 75px !important;
+                gap: 8px !important;
+                padding-bottom: calc(68px + env(safe-area-inset-bottom)) !important;
+                flex: 1 !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
             }
 
             .canvas-container {
-                min-height: 340px;
-                height: 48vh;
-                border-radius: 20px;
+                min-height: 200px !important;
+                flex: 1 1 auto !important;
+                height: auto !important;
+                border-radius: 18px !important;
             }
 
             .toolbar-panel {
                 width: 100% !important;
                 flex-direction: column !important;
-                gap: 10px !important;
+                gap: 8px !important;
+                padding: 10px 12px !important;
+                border-radius: 18px !important;
+                flex-shrink: 0 !important;
             }
 
             .tools-row-container {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 6px;
                 width: 100%;
             }
             .tools-row-container[style*="display: none"] {
@@ -1132,7 +1148,7 @@
             }
 
             .popup-tray.has-popup {
-                height: 60px !important;
+                height: 52px !important;
                 opacity: 1 !important;
                 transform: none !important;
             }
@@ -1142,8 +1158,8 @@
                 flex-direction: row !important;
                 width: 100% !important;
                 justify-content: space-around !important;
-                border-radius: 16px !important;
-                padding: 8px 12px !important;
+                border-radius: 14px !important;
+                padding: 6px 10px !important;
             }
 
             .eraser-size-panel::after,
@@ -1156,7 +1172,7 @@
                 width: auto !important;
                 height: auto !important;
                 border-radius: 10px !important;
-                padding: 6px 10px !important;
+                padding: 4px 8px !important;
             }
 
             .eraser-size-option span {
@@ -1174,10 +1190,10 @@
 
             .tool-card-btn {
                 width: auto !important;
-                height: 44px !important;
-                padding: 10px 2px !important;
+                height: 42px !important;
+                padding: 8px 2px !important;
                 font-size: 0.85rem !important;
-                border-radius: 14px !important;
+                border-radius: 12px !important;
                 justify-content: center !important;
                 gap: 4px !important;
                 flex: 1 !important;
@@ -1185,7 +1201,7 @@
 
             .toolbar-divider {
                 width: 1px !important;
-                height: 28px !important;
+                height: 24px !important;
                 background: #e2e8f0 !important;
                 margin: 0 2px !important;
             }
@@ -1215,13 +1231,26 @@
 
             .bottom-controls-row .btn-confirm-complete {
                 flex: 1 !important;
-                height: 48px !important;
+                height: 44px !important;
                 padding: 0 !important;
-                font-size: 1.05rem !important;
-                border-radius: 16px !important;
+                font-size: 1rem !important;
+                border-radius: 14px !important;
                 box-sizing: border-box !important;
             }
+        }
 
+        /* App-level Fullscreen CSS 모드 (시스템 토스트 누출 방지) */
+        body.is-fullscreen-app .app-header {
+            display: none !important;
+        }
+        body.is-fullscreen-app .bottom-nav-bar {
+            display: none !important;
+        }
+        body.is-fullscreen-app .workspace-view {
+            padding-bottom: 0 !important;
+        }
+        body.is-fullscreen-app .app-card {
+            padding: 6px !important;
         }
     </style>
 </head>
@@ -1453,18 +1482,48 @@
         let currentView = 'landing'; // 'landing', 'workspace', 'history'
         let zoomLevel = 100;
 
-        // 전체화면 토글 함수
+        // 스마트 전체화면 토글 함수 (모바일 시스템 알림 찌꺼기 방지 & App UI 극대화)
         function toggleFullScreen() {
+            const isMobile = window.innerWidth <= 768 || ('ontouchstart' in window);
+            const isAppFS = document.body.classList.contains('is-fullscreen-app');
+
+            if (isMobile) {
+                // 모바일 환경: Native RequestFullscreen의 시스템 토스트 지속 잔상 문제 방지를 위한 App CSS Fullscreen 모드
+                if (!isAppFS) {
+                    document.body.classList.add('is-fullscreen-app');
+                    // 시각적 뷰포트 스크롤 최상단 고정
+                    window.scrollTo(0, 0);
+                } else {
+                    document.body.classList.remove('is-fullscreen-app');
+                }
+                setTimeout(resizeCanvas, 100);
+                return;
+            }
+
+            // 데스크탑 환경: Native Fullscreen API + CSS 클래스 동기화
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
+                document.documentElement.requestFullscreen().then(() => {
+                    document.body.classList.add('is-fullscreen-app');
+                }).catch(err => {
                     console.error("Fullscreen error:", err);
+                    document.body.classList.toggle('is-fullscreen-app');
                 });
             } else {
                 if (document.exitFullscreen) {
-                    document.exitFullscreen();
+                    document.exitFullscreen().then(() => {
+                        document.body.classList.remove('is-fullscreen-app');
+                    });
                 }
             }
+            setTimeout(resizeCanvas, 100);
         }
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.body.classList.remove('is-fullscreen-app');
+            }
+            setTimeout(resizeCanvas, 100);
+        });
 
         function switchView(viewName) {
             currentView = viewName;
