@@ -1482,47 +1482,25 @@
         let currentView = 'landing'; // 'landing', 'workspace', 'history'
         let zoomLevel = 100;
 
-        // 스마트 전체화면 토글 함수 (모바일 시스템 알림 찌꺼기 방지 & App UI 극대화)
+        // 전체화면 토글 함수 (모든 기기 native fullscreen, 중복 진입 방지)
+        let _fsRequesting = false;
         function toggleFullScreen() {
-            const isMobile = window.innerWidth <= 768 || ('ontouchstart' in window);
-            const isAppFS = document.body.classList.contains('is-fullscreen-app');
-
-            if (isMobile) {
-                // 모바일 환경: Native RequestFullscreen의 시스템 토스트 지속 잔상 문제 방지를 위한 App CSS Fullscreen 모드
-                if (!isAppFS) {
-                    document.body.classList.add('is-fullscreen-app');
-                    // 시각적 뷰포트 스크롤 최상단 고정
-                    window.scrollTo(0, 0);
-                } else {
-                    document.body.classList.remove('is-fullscreen-app');
-                }
-                setTimeout(resizeCanvas, 100);
-                return;
-            }
-
-            // 데스크탑 환경: Native Fullscreen API + CSS 클래스 동기화
+            if (_fsRequesting) return; // 중복 호출 방지 (토스트 반복 표시 원인 제거)
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().then(() => {
-                    document.body.classList.add('is-fullscreen-app');
-                }).catch(err => {
+                _fsRequesting = true;
+                document.documentElement.requestFullscreen().catch(err => {
                     console.error("Fullscreen error:", err);
-                    document.body.classList.toggle('is-fullscreen-app');
+                }).finally(() => {
+                    _fsRequesting = false;
                 });
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen().then(() => {
-                        document.body.classList.remove('is-fullscreen-app');
-                    });
-                }
+                document.exitFullscreen && document.exitFullscreen();
             }
-            setTimeout(resizeCanvas, 100);
         }
 
+        // fullscreenchange: 아이콘 동기화 + 캔버스 리사이즈 (단 한 번만 처리)
         document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                document.body.classList.remove('is-fullscreen-app');
-            }
-            setTimeout(resizeCanvas, 100);
+            setTimeout(resizeCanvas, 120);
         });
 
         function switchView(viewName) {
