@@ -922,16 +922,18 @@
         }
 
         .history-thumb-box {
-            width: 60px;
-            height: 50px;
+            width: 45px;
+            height: 62px;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             overflow: hidden;
             padding: 2px;
+            box-sizing: border-box;
+            flex-shrink: 0;
         }
 
         .history-info {
@@ -1114,7 +1116,7 @@
             }
 
             .canvas-container {
-                min-height: 200px !important;
+                min-height: 380px !important;
                 flex: 1 1 auto !important;
                 height: auto !important;
                 border-radius: 18px !important;
@@ -1942,7 +1944,7 @@
                 return `
                     <div class="saved-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 6px; border-bottom: 1px dashed rgba(255,255,255,0.08);">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <canvas class="thumb-canvas-saved-${item.id}" width="40" height="30" style="border: 1px solid rgba(255,255,255,0.15); background: #0f172a; border-radius: 6px; display: block; position: static;"></canvas>
+                            <canvas class="thumb-canvas-saved-${item.id}" width="30" height="42" style="border: 1px solid rgba(255,255,255,0.15); background: #0f172a; border-radius: 6px; display: block; position: static; width:30px; height:42px;"></canvas>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <button onclick="republishSaved(${item.id})" style="padding: 5px 10px; min-width: auto; font-size: 11px; background: var(--accent-gradient); color: #fff; cursor: pointer; border-radius: 6px; border: none; font-weight: bold; box-shadow: 0 2px 8px rgba(99,102,241,0.3);">🖨️ 출력</button>
@@ -1964,10 +1966,9 @@
 
         // 미니 썸네일 드로잉 (HiDPI 고해상도 + 곡선 보간으로 디테일 강화)
         function drawThumb(canvas, contours, w, h) {
-            // 실제 표시 크기 기준 DPI 2배로 캔버스 해상도 확장
             const dpr = window.devicePixelRatio || 2;
-            const displayW = canvas.offsetWidth || canvas.width;
-            const displayH = canvas.offsetHeight || canvas.height;
+            const displayW = canvas.offsetWidth || canvas.width || 45;
+            const displayH = canvas.offsetHeight || canvas.height || 62;
             canvas.width = displayW * dpr;
             canvas.height = displayH * dpr;
             canvas.style.width = displayW + 'px';
@@ -1978,6 +1979,13 @@
             ctx.clearRect(0, 0, displayW, displayH);
             if (!contours || contours.length === 0) return;
 
+            // 썸네일 테두리 마스킹
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, displayW, displayH);
+            ctx.clip();
+
+            // contours의 실제 경계영역(Bounding Box) 산출
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             contours.forEach(c => {
                 c.forEach(pt => {
@@ -1991,39 +1999,65 @@
             const bboxW = (maxX - minX) || 1;
             const bboxH = (maxY - minY) || 1;
 
+            // 그림이 가로 형태(bboxW > bboxH)인지 확인하여 세로 박스에 맞게 90도 회전 적용
+            const isLandscape = bboxW > bboxH;
+
+            // 회전 시 effectiveWidth, effectiveHeight 설정
+            const effW = isLandscape ? bboxH : bboxW;
+            const effH = isLandscape ? bboxW : bboxH;
+
             const padding = 3;
             const availW = displayW - padding * 2;
             const availH = displayH - padding * 2;
 
-            const scale = Math.min(availW / bboxW, availH / bboxH);
-            const offsetX = padding + (availW - bboxW * scale) / 2;
-            const offsetY = padding + (availH - bboxH * scale) / 2;
+            const scale = Math.min(availW / effW, availH / effH);
 
             ctx.strokeStyle = "#6366f1";
-            ctx.lineWidth = 0.7;
+            ctx.lineWidth = 0.9;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.globalAlpha = 0.9;
+            ctx.globalAlpha = 0.95;
 
             contours.forEach(contour => {
                 if (!contour || contour.length === 0) return;
                 ctx.beginPath();
-                const px = (pt) => (pt.x - minX) * scale + offsetX;
-                const py = (pt) => (pt.y - minY) * scale + offsetY;
-                ctx.moveTo(px(contour[0]), py(contour[0]));
+
+                const getTransformedPt = (pt) => {
+                    // 1. 바운딩 박스 기준 0~1 정규화 좌표
+                    let nx = (pt.x - minX) / bboxW;
+                    let ny = (pt.y - minY) / bboxH;
+
+                    let finalX, finalY;
+                    if (isLandscape) {
+                        // 가로 그림을 시계 방향 90도 회전 (x -> 1-y, y -> x)
+                        const rx = 1 - ny;
+                        const ry = nx;
+                        finalX = padding + (availW - effW * scale) / 2 + rx * (effW * scale);
+                        finalY = padding + (availH - effH * scale) / 2 + ry * (effH * scale);
+                    } else {
+                        finalX = padding + (availW - effW * scale) / 2 + nx * (effW * scale);
+                        finalY = padding + (availH - effH * scale) / 2 + ny * (effH * scale);
+                    }
+                    return { x: finalX, y: finalY };
+                };
+
+                const startPt = getTransformedPt(contour[0]);
+                ctx.moveTo(startPt.x, startPt.y);
+
                 for (let i = 1; i < contour.length - 1; i++) {
-                    // 중간점 보간으로 부드러운 곡선 표현
-                    const mx = (px(contour[i]) + px(contour[i + 1])) / 2;
-                    const my = (py(contour[i]) + py(contour[i + 1])) / 2;
-                    ctx.quadraticCurveTo(px(contour[i]), py(contour[i]), mx, my);
+                    const pCurr = getTransformedPt(contour[i]);
+                    const pNext = getTransformedPt(contour[i + 1]);
+                    const mx = (pCurr.x + pNext.x) / 2;
+                    const my = (pCurr.y + pNext.y) / 2;
+                    ctx.quadraticCurveTo(pCurr.x, pCurr.y, mx, my);
                 }
                 if (contour.length > 1) {
-                    const last = contour[contour.length - 1];
-                    ctx.lineTo(px(last), py(last));
+                    const lastPt = getTransformedPt(contour[contour.length - 1]);
+                    ctx.lineTo(lastPt.x, lastPt.y);
                 }
                 ctx.stroke();
             });
-            ctx.globalAlpha = 1.0;
+            ctx.restore();
         }
 
         // 서버 대기열 현황 조회 수집 (모바일/데스크톱 로컬 캐싱 적용)
@@ -2254,7 +2288,7 @@
                         <div class="history-card-left">
                             <div class="drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
                             <div class="history-thumb-box">
-                                <canvas class="thumb-canvas-svr-${task.task_id}" width="70" height="56" style="width:70px;height:56px;display:block;"></canvas>
+                                <canvas class="thumb-canvas-svr-${task.task_id}" width="45" height="62" style="width:45px;height:62px;display:block;"></canvas>
                             </div>
                             <div class="history-info">
                                 <div class="history-info-top">
@@ -2270,6 +2304,9 @@
 
                             <!-- 삼선 팝업 메뉴 -->
                             <div class="card-menu-popover" id="card-menu-${task.task_id}">
+                                <button class="card-menu-item" onclick="reEditTask(event, ${task.task_id})">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg> 재출력 (수정)
+                                </button>
                                 <button class="card-menu-item" onclick="renameTask(event, ${task.task_id})">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> 이름 변경
                                 </button>
@@ -2488,6 +2525,36 @@
             }
         }
 
+        // 내 그림 메뉴에서 '재출력 (수정)' 누를 때 호출되는 함수
+        function reEditTask(e, taskId) {
+            e.stopPropagation();
+            document.querySelectorAll('.card-menu-popover').forEach(el => el.classList.remove('show'));
+            if (menuDropdown) menuDropdown.classList.remove('show');
+            if (statusPollInterval) {
+                clearInterval(statusPollInterval);
+                statusPollInterval = null;
+            }
+
+            const task = cachedTasks.find(t => t.task_id === taskId);
+            if (!task || !task.contours) {
+                showAlert("그림 데이터를 불러올 수 없습니다.");
+                return;
+            }
+
+            // simData 세팅 및 contours 복원
+            simData = {
+                width: 800,
+                height: 600,
+                contours: JSON.parse(JSON.stringify(task.contours))
+            };
+
+            // workspace 화면으로 먼저 전환 후, resizeCanvas 완료 뒤 수정 모드 진입
+            switchView('workspace');
+            setTimeout(() => {
+                startEditing();
+            }, 80);
+        }
+
         // 외부 클릭 시 메뉴 및 카드 팝업 닫기
         window.addEventListener('click', () => {
             document.querySelectorAll('.card-menu-popover').forEach(el => el.classList.remove('show'));
@@ -2564,6 +2631,21 @@
 
                 const result = await response.json();
                 if (result.status === 'success') {
+                    // 1. 커스텀 이름 지우기
+                    const customNames = getTaskCustomNames();
+                    if (customNames[taskId]) {
+                        delete customNames[taskId];
+                        saveTaskCustomNames(customNames);
+                    }
+                    // 2. 로컬 캐시에서 해당 taskId 제거
+                    const localData = localStorage.getItem('vico_cached_tasks');
+                    if (localData) {
+                        try {
+                            const cached = JSON.parse(localData);
+                            const updatedCached = cached.filter(t => t.task_id !== taskId);
+                            localStorage.setItem('vico_cached_tasks', JSON.stringify(updatedCached));
+                        } catch (e) {}
+                    }
                     fetchTasksStatus();
                 } else {
                     throw new Error(result.message || '삭제 실패');
@@ -2682,22 +2764,24 @@
             };
         }
 
+        let simMoveStartPos = null;
+
         function handleTouchStart(e) {
-            if (mode !== 'drawing' && mode !== 'editing') return;
+            if (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating') return;
             e.preventDefault();
             const pos = getTouchPos(e);
             startDrawingAt(pos.x, pos.y);
         }
 
         function handleTouchMove(e) {
-            if (!isDrawing || (mode !== 'drawing' && mode !== 'editing')) return;
+            if (!isDrawing || (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating')) return;
             e.preventDefault();
             const pos = getTouchPos(e);
             drawTo(pos.x, pos.y);
         }
 
         function startDrawing(e) {
-            if (mode !== 'drawing' && mode !== 'editing') return;
+            if (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating') return;
             const pos = getMousePos(e);
             startDrawingAt(pos.x, pos.y);
         }
@@ -2710,6 +2794,11 @@
 
         function startDrawingAt(x, y) {
             isDrawing = true;
+
+            if (mode === 'simulating') {
+                simMoveStartPos = { x, y };
+                return;
+            }
 
             if (mode === 'editing' || mode === 'drawing') {
                 const pos = toSimCoords(x, y);
@@ -2795,6 +2884,34 @@
         }
 
         function drawTo(x, y) {
+            if (mode === 'simulating' && simMoveStartPos && simData && simData.contours) {
+                const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
+                const dx = (x - simMoveStartPos.x) / scale;
+                const dy = (y - simMoveStartPos.y) / scale;
+
+                if (dx !== 0 || dy !== 0) {
+                    // contours 내의 모든 점을 dx, dy만큼 이동
+                    simData.contours.forEach(contour => {
+                        contour.forEach(pt => {
+                            pt.x += dx;
+                            pt.y += dy;
+                        });
+                    });
+                    // activeContours 도 동기화
+                    if (activeContours && activeContours !== simData.contours) {
+                        activeContours.forEach(contour => {
+                            contour.forEach(pt => {
+                                pt.x += dx;
+                                pt.y += dy;
+                            });
+                        });
+                    }
+                    simMoveStartPos = { x, y };
+                    skipSimulation();
+                }
+                return;
+            }
+
             if (mode === 'editing' || mode === 'drawing') {
                 const pos = toSimCoords(x, y);
 
@@ -3166,6 +3283,7 @@
         function stopDrawing() {
             lastCanvasPos = null;
             lastErasePos = null;
+            simMoveStartPos = null;
             const wasDrawingShape = (activeTool === 'shape' && dragMode);
             isDrawing = false;
             if (activeTool === 'shape') {
@@ -3734,7 +3852,7 @@
         }
 
         async function uploadToQueue() {
-            if (!simData || !simData.gcode) {
+            if (!simData || !simData.contours) {
                 await showAlert("전송할 데이터가 없습니다.");
                 return;
             }
@@ -3742,9 +3860,60 @@
             const progressContainer = document.getElementById('progress-container');
             const progressBar = document.getElementById('progress-bar');
             progressContainer.style.display = 'block';
-            progressBar.style.width = '50%';
+            progressBar.style.width = '30%';
 
             try {
+                // 종이 가이드 프레임 영역 내부 좌표 구하기
+                const crop = getPaperCropRect();
+                const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
+                const offsetX = (simCanvas.width - simData.width * scale) / 2;
+                const offsetY = (simCanvas.height - simData.height * scale) / 2;
+
+                // 종이 영역 내부 선만 클리핑(필터링)하여 전송용 contours 생성
+                const croppedContours = [];
+                simData.contours.forEach(contour => {
+                    let currentContour = [];
+                    for (let i = 0; i < contour.length; i++) {
+                        const pt = contour[i];
+                        const px = pt.x * scale + offsetX;
+                        const py = pt.y * scale + offsetY;
+
+                        const isInside = crop && (px >= crop.x && px <= crop.x + crop.w && py >= crop.y && py <= crop.y + crop.h);
+                        if (isInside) {
+                            currentContour.push(pt);
+                        } else {
+                            if (currentContour.length > 1) {
+                                croppedContours.push(currentContour);
+                            }
+                            currentContour = [];
+                        }
+                    }
+                    if (currentContour.length > 1) {
+                        croppedContours.push(currentContour);
+                    }
+                });
+
+                const finalContours = (croppedContours.length > 0) ? croppedContours : simData.contours;
+
+                // 클리핑 처리된 벡터 데이터로 최신 G-Code 생성
+                const updateRes = await fetch('/api/update-gcode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        width: simData.width,
+                        height: simData.height,
+                        contours: finalContours
+                    })
+                });
+                const updateResult = await updateRes.json();
+                if (updateResult.status === 'success') {
+                    simData.gcode = updateResult.gcode;
+                } else {
+                    throw new Error(updateResult.message || "G-Code 생성에 실패했습니다.");
+                }
+
+                progressBar.style.width = '70%';
+
                 const response = await fetch('/api/push-task', {
                     method: 'POST',
                     headers: {
@@ -3753,7 +3922,7 @@
                     },
                     body: JSON.stringify({
                         gcode: simData.gcode,
-                        contours: simData.contours
+                        contours: finalContours
                     })
                 });
 
@@ -3923,6 +4092,53 @@
             }
         }
 
+        // 종이 자르기 가이드 (세로/가로 비율 반영) 렌더링 함수
+        function getPaperCropRect() {
+            if (!simCanvas.width || !simCanvas.height) return null;
+            const isPortrait = simCanvas.height >= simCanvas.width;
+            // 세로모드: 138(가로) x 200(세로), 가로모드: 200(가로) x 138(세로)
+            const targetRatio = isPortrait ? (138 / 200) : (200 / 138);
+            const canvasRatio = simCanvas.width / simCanvas.height;
+
+            let rectW, rectH;
+            if (canvasRatio > targetRatio) {
+                rectH = simCanvas.height * 0.9;
+                rectW = rectH * targetRatio;
+            } else {
+                rectW = simCanvas.width * 0.9;
+                rectH = rectW / targetRatio;
+            }
+            const rectX = (simCanvas.width - rectW) / 2;
+            const rectY = (simCanvas.height - rectH) / 2;
+            return { x: rectX, y: rectY, w: rectW, h: rectH, isPortrait };
+        }
+
+        function drawPaperCropOverlay() {
+            if (mode !== 'simulating') return;
+            const crop = getPaperCropRect();
+            if (!crop) return;
+
+            simCtx.save();
+            // 종이 영역 테두리 (점선 가이드)
+            simCtx.strokeStyle = "rgba(74, 144, 226, 0.6)";
+            simCtx.lineWidth = 2;
+            simCtx.setLineDash([6, 4]);
+            simCtx.strokeRect(crop.x, crop.y, crop.w, crop.h);
+
+            // 종이 바깥 어두운 마스킹
+            simCtx.fillStyle = "rgba(0, 0, 0, 0.25)";
+            // Top
+            simCtx.fillRect(0, 0, simCanvas.width, crop.y);
+            // Bottom
+            simCtx.fillRect(0, crop.y + crop.h, simCanvas.width, simCanvas.height - (crop.y + crop.h));
+            // Left
+            simCtx.fillRect(0, crop.y, crop.x, crop.h);
+            // Right
+            simCtx.fillRect(crop.x + crop.w, crop.y, simCanvas.width - (crop.x + crop.w), crop.h);
+
+            simCtx.restore();
+        }
+
         // 시뮬레이션 로직
         function startSimulation(data) {
             setMode('simulating');
@@ -3942,21 +4158,22 @@
             const offsetY = (simCanvas.height - data.height * scale) / 2;
 
             simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
-            simCtx.strokeStyle = "#4a90e2";
-            simCtx.lineWidth = (lastInputMode === 'drawing') ? 5 : 2; // 그리기 모드였으면 2배 굵게
             simCtx.lineCap = 'round';
             simCtx.lineJoin = 'round';
 
             let contourIdx = 0;
             let pointIdx = 0;
-            const speed = 30; // 그리기 시뮬레이션 속도 2배 향상 (15 -> 30)
+            const speed = 30;
+
+            const crop = getPaperCropRect();
 
             function animate() {
-                if (mode !== 'simulating') return; // 모드가 바뀌면 중단
+                if (mode !== 'simulating') return;
 
                 if (contourIdx >= data.contours.length) {
                     animationId = null;
-                    document.getElementById('skip-button').style.display = 'none'; // 시뮬레이션 완료 시 버튼 숨김
+                    document.getElementById('skip-button').style.display = 'none';
+                    drawPaperCropOverlay();
                     return;
                 }
 
@@ -3965,10 +4182,27 @@
 
                     const contour = data.contours[contourIdx];
                     if (pointIdx === 0) {
-                        simCtx.beginPath();
-                        simCtx.moveTo(contour[0].x * scale + offsetX, contour[0].y * scale + offsetY);
+                        // pass
                     } else {
-                        simCtx.lineTo(contour[pointIdx].x * scale + offsetX, contour[pointIdx].y * scale + offsetY);
+                        const p1x = contour[pointIdx - 1].x * scale + offsetX;
+                        const p1y = contour[pointIdx - 1].y * scale + offsetY;
+                        const p2x = contour[pointIdx].x * scale + offsetX;
+                        const p2y = contour[pointIdx].y * scale + offsetY;
+
+                        const midX = (p1x + p2x) / 2;
+                        const midY = (p1y + p2y) / 2;
+                        const isInside = crop && (midX >= crop.x && midX <= crop.x + crop.w && midY >= crop.y && midY <= crop.y + crop.h);
+
+                        simCtx.beginPath();
+                        simCtx.moveTo(p1x, p1y);
+                        simCtx.lineTo(p2x, p2y);
+                        if (isInside) {
+                            simCtx.strokeStyle = "#4a90e2";
+                            simCtx.lineWidth = (lastInputMode === 'drawing') ? 4 : 2;
+                        } else {
+                            simCtx.strokeStyle = "rgba(74, 144, 226, 0.25)";
+                            simCtx.lineWidth = 1.5;
+                        }
                         simCtx.stroke();
                     }
 
@@ -3993,19 +4227,39 @@
             const offsetY = (simCanvas.height - data.height * scale) / 2;
 
             simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
-            simCtx.strokeStyle = "#4a90e2";
-            simCtx.lineWidth = (lastInputMode === 'drawing') ? 5 : 2; // 스킵 시에도 동일 적용
+            simCtx.lineCap = 'round';
+            simCtx.lineJoin = 'round';
+
+            const crop = getPaperCropRect();
 
             data.contours.forEach(contour => {
-                simCtx.beginPath();
-                simCtx.moveTo(contour[0].x * scale + offsetX, contour[0].y * scale + offsetY);
                 for (let i = 1; i < contour.length; i++) {
-                    simCtx.lineTo(contour[i].x * scale + offsetX, contour[i].y * scale + offsetY);
+                    const p1x = contour[i - 1].x * scale + offsetX;
+                    const p1y = contour[i - 1].y * scale + offsetY;
+                    const p2x = contour[i].x * scale + offsetX;
+                    const p2y = contour[i].y * scale + offsetY;
+
+                    const midX = (p1x + p2x) / 2;
+                    const midY = (p1y + p2y) / 2;
+                    const isInside = crop && (midX >= crop.x && midX <= crop.x + crop.w && midY >= crop.y && midY <= crop.y + crop.h);
+
+                    simCtx.beginPath();
+                    simCtx.moveTo(p1x, p1y);
+                    simCtx.lineTo(p2x, p2y);
+                    if (isInside) {
+                        simCtx.strokeStyle = "#4a90e2";
+                        simCtx.lineWidth = (lastInputMode === 'drawing') ? 4 : 2;
+                    } else {
+                        simCtx.strokeStyle = "rgba(74, 144, 226, 0.25)";
+                        simCtx.lineWidth = 1.5;
+                    }
+                    simCtx.stroke();
                 }
-                simCtx.stroke();
             });
+
+            drawPaperCropOverlay();
             animationId = null;
-            document.getElementById('skip-button').style.display = 'none'; // 스킵 시 버튼 숨김
+            document.getElementById('skip-button').style.display = 'none';
         }
 
         function cancelSimulation() {
