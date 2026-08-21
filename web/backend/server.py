@@ -10,6 +10,8 @@ import uvicorn
 from pydantic import BaseModel
 from typing import Optional
 
+import json
+
 app = FastAPI()
 
 # 데이터 모델 정의
@@ -25,12 +27,40 @@ class ContoursData(BaseModel):
 class ClearRequest(BaseModel):
     saved_ids: list[int]
 
-# 임시 데이터 저장소 (다중 큐 및 히스토리 관리)
-tasks_db = []  # 각 task: {"task_id": int, "gcode": str, "contours": list, "status": str ("pending" | "drawing" | "complete")}
+# 영구 저장 파일 경로
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, "tasks_persistence.json")
+
+# 임시 데이터 저장소 (다중 큐 및 히스토리 관리 - 파일 지속 보존)
+tasks_db = []  # 각 task: {"task_id": int, "gcode": str, "contours": list, "status": str}
 task_counter = 0
 
-# 경로 설정
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+def load_tasks_from_file():
+    global tasks_db, task_counter
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                tasks_db = data.get("tasks", [])
+                task_counter = data.get("task_counter", 0)
+                print(f">>> [PERSISTENCE] Loaded {len(tasks_db)} tasks from file (Last Counter: {task_counter})")
+        except Exception as e:
+            print(f">>> [PERSISTENCE] Load error: {e}")
+
+def save_tasks_to_file():
+    global tasks_db, task_counter
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump({
+                "tasks": tasks_db,
+                "task_counter": task_counter
+            }, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f">>> [PERSISTENCE] Save error: {e}")
+
+# 서버 시작 시 기존 데이터 영구 복원
+load_tasks_from_file()
+
 FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
 if not os.path.exists(FRONTEND_DIR):
     FRONTEND_DIR = os.path.join(BASE_DIR, "../../web/frontend")
@@ -100,6 +130,7 @@ async def clear_task(req: ClearRequest):
     try:
         # 보관된 saved_ids에 들어있거나 현재 출력중('drawing')인 작업만 남겨두고 나머지는 큐에서 제거
         tasks_db = [t for t in tasks_db if t["task_id"] in req.saved_ids or t["status"] == "drawing"]
+        save_tasks_to_file()
         print(f">>> SUCCESS: Queue Cleared (Saved preserved: {req.saved_ids})")
         return JSONResponse(content={"status": "success", "message": "저장된 데이터를 제외하고 모든 G-Code가 삭제되었습니다."})
     except Exception as e:
@@ -111,6 +142,7 @@ async def delete_task(task_id: int):
     for i, t in enumerate(tasks_db):
         if t["task_id"] == task_id:
             tasks_db.pop(i)
+            save_tasks_to_file()
             print(f">>> SUCCESS: Task {task_id} Deleted")
             return {"status": "success", "message": f"Task {task_id} deleted"}
     return JSONResponse(status_code=404, content={"status": "error", "message": "작업을 찾을 수 없습니다."})
@@ -127,6 +159,7 @@ async def push_task(task: DrawingTask):
             "status": "pending"
         }
         tasks_db.append(new_task)
+        save_tasks_to_file()
         print(f">>> SUCCESS: Task {task_counter} Pushed")
         return {"status": "success", "task_id": task_counter}
     except Exception as e:
@@ -147,6 +180,7 @@ async def get_task():
     for task in tasks_db:
         if task["status"] == "pending":
             task["status"] = "drawing"
+            save_tasks_to_file()
             print(f">>> ESP32 fetched task {task['task_id']}. Status: drawing")
             return {"task_id": task["task_id"], "gcode": task["gcode"]}
     return {"task_id": 0, "gcode": ""}
@@ -157,6 +191,7 @@ async def complete_task(task_id: int):
     for task in tasks_db:
         if task["task_id"] == task_id:
             task["status"] = "complete"
+            save_tasks_to_file()
             print(f">>> ESP32 completed task {task_id}. Status: complete")
             return {"status": "success", "message": f"Task {task_id} completed"}
     return JSONResponse(status_code=404, content={"status": "error", "message": "태스크를 찾을 수 없습니다."})

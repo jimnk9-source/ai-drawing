@@ -2233,7 +2233,6 @@
                 return `
                     <div class="history-card" data-task-id="${task.task_id}" draggable="false">
                         <div class="history-card-left">
-                            <div class="drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
                             <div class="history-thumb-box">
                                 <canvas class="thumb-canvas-svr-${task.task_id}" width="70" height="56" style="width:70px;height:56px;display:block;"></canvas>
                             </div>
@@ -2248,6 +2247,7 @@
                         <div class="history-actions">
                             <button class="star-btn ${isSaved ? 'active' : ''}" ${starAction} title="${isSaved ? '보관됨' : '보관'}">${isSaved ? '★' : '☆'}</button>
                             <button class="more-btn" onclick="toggleCardMenu(event, ${task.task_id})" title="메뉴">⋮</button>
+                            <div class="drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
 
                             <!-- 삼선 팝업 메뉴 -->
                             <div class="card-menu-popover" id="card-menu-${task.task_id}">
@@ -2278,18 +2278,20 @@
             }, 50);
         }
 
-        // 내 그림 카드 순서 변경 핸들러 (마우스 Native Drag&Drop + 모바일 Touch Drag&Drop 완벽 지원)
+        // 내 그림 카드 순서 변경 핸들러 (우측 핸들 0초 즉시 드래그 + 본문 꾹 누르기 완벽 지원)
         function initCardDragAndDrop(container) {
             const cards = container.querySelectorAll('.history-card');
             let draggedCard = null;
-            let isTouchDragging = false;
 
             cards.forEach(card => {
                 let longPressTimer = null;
                 let isDragReady = false;
+                let startX = 0, startY = 0;
 
                 function activateDrag() {
+                    if (isDragReady) return;
                     isDragReady = true;
+                    draggedCard = card;
                     card.setAttribute('draggable', 'true');
                     card.classList.add('dragging');
                     card.style.transform = 'scale(0.97)';
@@ -2299,12 +2301,14 @@
                 }
 
                 function cancelLongPress() {
-                    clearTimeout(longPressTimer);
-                    isDragReady = false;
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
                 }
 
                 function resetCard() {
-                    clearTimeout(longPressTimer);
+                    cancelLongPress();
                     isDragReady = false;
                     card.classList.remove('dragging');
                     card.setAttribute('draggable', 'false');
@@ -2327,14 +2331,18 @@
                     if (handle && handle.contains(e.target)) {
                         activateDrag();
                     } else {
-                        longPressTimer = setTimeout(activateDrag, 450);
+                        longPressTimer = setTimeout(activateDrag, 350);
                     }
                 });
                 card.addEventListener('mouseup', () => {
-                    if (!draggedCard) resetCard();
+                    if (draggedCard === card) {
+                        updateOrderAndSave();
+                    }
+                    resetCard();
+                    draggedCard = null;
                 });
                 card.addEventListener('mouseleave', () => {
-                    if (!draggedCard) cancelLongPress();
+                    if (draggedCard !== card) resetCard();
                 });
 
                 card.addEventListener('dragstart', (e) => {
@@ -2361,59 +2369,66 @@
                     container.insertBefore(draggedCard, next ? card.nextSibling : card);
                 });
 
-                // ─── 터치 이벤트 (모바일 터치 이동 드래그 지원) ───
+                // ─── 터치 이벤트 (모바일 터치 완벽 반응) ───
                 card.addEventListener('touchstart', (e) => {
                     const touch = e.touches[0];
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (handle && handle.contains(target)) {
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+
+                    const target = document.elementFromPoint(startX, startY);
+                    
+                    // 우측 핸들(⋮⋮)을 터치하면 기다림 없이 0초 즉시 드래그 활성화!
+                    if (handle && (handle.contains(target) || target === handle)) {
+                        e.preventDefault();
                         activateDrag();
-                        draggedCard = card;
                     } else {
+                        // 본문 꾹 누르기 (350ms)
                         longPressTimer = setTimeout(() => {
                             activateDrag();
-                            draggedCard = card;
-                        }, 400);
+                        }, 350);
                     }
                 }, { passive: false });
 
                 card.addEventListener('touchmove', (e) => {
-                    if (!isDragReady || !draggedCard) {
-                        cancelLongPress();
+                    const touch = e.touches[0];
+                    const moveX = touch.clientX;
+                    const moveY = touch.clientY;
+
+                    // 아직 드래그 준비가 안 된 경우: 미세 손가락 떨림(12px 이내)은 롱프레스 취소하지 않음!
+                    if (!isDragReady) {
+                        const dist = Math.hypot(moveX - startX, moveY - startY);
+                        if (dist > 12) {
+                            cancelLongPress(); // 12px 이상 크게 움직였을 때만 스크롤로 인정하고 타이머 취소
+                        }
                         return;
                     }
 
-                    // 터치 드래그 중 브라우저 스크롤 완전 방지
+                    // 드래그 활성화 상태: 뷰포트 스크롤 완전 차단 및 실시간 이동
                     if (e.cancelable) e.preventDefault();
-                    isTouchDragging = true;
 
-                    const touch = e.touches[0];
-                    // 터치 좌표 기반으로 현재 위치 아래의 history-card 찾기
-                    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+                    const targetEl = document.elementFromPoint(moveX, moveY);
                     if (!targetEl) return;
 
                     const targetCard = targetEl.closest('.history-card');
                     if (targetCard && targetCard !== draggedCard && targetCard.parentNode === container) {
                         const rect = targetCard.getBoundingClientRect();
-                        const next = (touch.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+                        const next = (moveY - rect.top) / (rect.bottom - rect.top) > 0.5;
                         container.insertBefore(draggedCard, next ? targetCard.nextSibling : targetCard);
                     }
                 }, { passive: false });
 
-                card.addEventListener('touchend', (e) => {
+                card.addEventListener('touchend', () => {
                     cancelLongPress();
-                    if (isTouchDragging && draggedCard) {
+                    if (isDragReady && draggedCard === card) {
                         updateOrderAndSave();
                     }
                     resetCard();
                     draggedCard = null;
-                    isTouchDragging = false;
                 });
 
                 card.addEventListener('touchcancel', () => {
-                    cancelLongPress();
                     resetCard();
                     draggedCard = null;
-                    isTouchDragging = false;
                 });
             });
         }
