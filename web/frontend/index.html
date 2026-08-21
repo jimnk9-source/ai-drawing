@@ -1264,7 +1264,9 @@
         <!-- 헤더 바 -->
         <header class="app-header">
             <div class="brand-logo" onclick="switchView('landing')">
-                <div class="brand-icon">✏️</div>
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                </div>
                 <div class="brand-title">Ai Drawing</div>
                 <span class="version-tag">v1.3</span>
             </div>
@@ -1282,10 +1284,12 @@
 
             <div class="hero-btn-box">
                 <button class="btn-landing-upload" onclick="triggerFileInput()">
-                    <span>⬆️</span> 이미지 업로드
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    이미지 업로드
                 </button>
                 <button class="btn-landing-draw" onclick="startDirectDraw()">
-                    <span>✏️</span> 직접 그리기
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                    직접 그리기
                 </button>
             </div>
             <input type="file" id="file-input" accept="image/*" style="display: none;">
@@ -2234,10 +2238,10 @@
                             <!-- 삼선 팝업 메뉴 -->
                             <div class="card-menu-popover" id="card-menu-${task.task_id}">
                                 <button class="card-menu-item" onclick="renameTask(event, ${task.task_id})">
-                                    <span>✏️</span> 이름 변경
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> 이름 변경
                                 </button>
                                 <button class="card-menu-item danger" onclick="deleteServerTask(event, ${task.task_id})">
-                                    <span>🗑️</span> 삭제
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> 삭제
                                 </button>
                             </div>
                         </div>
@@ -2260,10 +2264,11 @@
             }, 50);
         }
 
-        // 내 그림 카드 순서 변경 핸들러 (길게 누를 때만 드래그 활성화 - 마우스/터치 동일)
+        // 내 그림 카드 순서 변경 핸들러 (마우스 Native Drag&Drop + 모바일 Touch Drag&Drop 완벽 지원)
         function initCardDragAndDrop(container) {
             const cards = container.querySelectorAll('.history-card');
             let draggedCard = null;
+            let isTouchDragging = false;
 
             cards.forEach(card => {
                 let longPressTimer = null;
@@ -2272,6 +2277,7 @@
                 function activateDrag() {
                     isDragReady = true;
                     card.setAttribute('draggable', 'true');
+                    card.classList.add('dragging');
                     card.style.transform = 'scale(0.97)';
                     card.style.boxShadow = '0 8px 24px rgba(99, 102, 241, 0.35)';
                     card.style.borderColor = '#6366f1';
@@ -2286,44 +2292,36 @@
                 function resetCard() {
                     clearTimeout(longPressTimer);
                     isDragReady = false;
-                    if (!draggedCard) {
-                        card.setAttribute('draggable', 'false');
-                        card.style.transform = '';
-                        card.style.boxShadow = '';
-                        card.style.borderColor = '';
-                    }
+                    card.classList.remove('dragging');
+                    card.setAttribute('draggable', 'false');
+                    card.style.transform = '';
+                    card.style.boxShadow = '';
+                    card.style.borderColor = '';
+                }
+
+                function updateOrderAndSave() {
+                    const newOrder = Array.from(container.querySelectorAll('.history-card'))
+                        .map(el => parseInt(el.getAttribute('data-task-id')));
+                    saveTaskOrder(newOrder);
                 }
 
                 const handle = card.querySelector('.drag-handle');
 
-                // 마우스: drag-handle은 즉시, 나머지는 500ms
+                // ─── 마우스 이벤트 ───
                 card.addEventListener('mousedown', (e) => {
                     if (e.button !== 0) return;
                     if (handle && handle.contains(e.target)) {
-                        activateDrag(); // 핸들 클릭 시 즉시 드래그 활성화
+                        activateDrag();
                     } else {
-                        longPressTimer = setTimeout(activateDrag, 500);
+                        longPressTimer = setTimeout(activateDrag, 450);
                     }
                 });
-                card.addEventListener('mouseup', resetCard);
-                card.addEventListener('mouseleave', (e) => {
+                card.addEventListener('mouseup', () => {
+                    if (!draggedCard) resetCard();
+                });
+                card.addEventListener('mouseleave', () => {
                     if (!draggedCard) cancelLongPress();
                 });
-
-                // 터치: drag-handle은 즉시, 나머지는 500ms
-                card.addEventListener('touchstart', (e) => {
-                    const touch = e.touches[0];
-                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (handle && handle.contains(target)) {
-                        activateDrag(); // 핸들 터치 시 즉시 드래그 활성화
-                    } else {
-                        longPressTimer = setTimeout(activateDrag, 500);
-                    }
-                }, { passive: true });
-                card.addEventListener('touchend', resetCard);
-                card.addEventListener('touchmove', () => {
-                    if (!isDragReady) cancelLongPress();
-                }, { passive: true });
 
                 card.addEventListener('dragstart', (e) => {
                     if (!isDragReady) {
@@ -2336,16 +2334,9 @@
                 });
 
                 card.addEventListener('dragend', () => {
-                    card.classList.remove('dragging');
-                    card.setAttribute('draggable', 'false');
-                    card.style.transform = '';
-                    card.style.boxShadow = '';
-                    card.style.borderColor = '';
-                    isDragReady = false;
+                    resetCard();
                     draggedCard = null;
-                    const newOrder = Array.from(container.querySelectorAll('.history-card'))
-                        .map(el => parseInt(el.getAttribute('data-task-id')));
-                    saveTaskOrder(newOrder);
+                    updateOrderAndSave();
                 });
 
                 card.addEventListener('dragover', (e) => {
@@ -2354,6 +2345,61 @@
                     const rect = card.getBoundingClientRect();
                     const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
                     container.insertBefore(draggedCard, next ? card.nextSibling : card);
+                });
+
+                // ─── 터치 이벤트 (모바일 터치 이동 드래그 지원) ───
+                card.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (handle && handle.contains(target)) {
+                        activateDrag();
+                        draggedCard = card;
+                    } else {
+                        longPressTimer = setTimeout(() => {
+                            activateDrag();
+                            draggedCard = card;
+                        }, 450);
+                    }
+                }, { passive: true });
+
+                card.addEventListener('touchmove', (e) => {
+                    if (!isDragReady || !draggedCard) {
+                        cancelLongPress();
+                        return;
+                    }
+
+                    // 터치 드래그 중 스크롤 방지
+                    if (e.cancelable) e.preventDefault();
+                    isTouchDragging = true;
+
+                    const touch = e.touches[0];
+                    // 터치 위치 아래의 HTML 요소 찾기
+                    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (!targetEl) return;
+
+                    const targetCard = targetEl.closest('.history-card');
+                    if (targetCard && targetCard !== draggedCard && targetCard.parentNode === container) {
+                        const rect = targetCard.getBoundingClientRect();
+                        const next = (touch.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+                        container.insertBefore(draggedCard, next ? targetCard.nextSibling : targetCard);
+                    }
+                }, { passive: false });
+
+                card.addEventListener('touchend', (e) => {
+                    cancelLongPress();
+                    if (isTouchDragging && draggedCard) {
+                        updateOrderAndSave();
+                    }
+                    resetCard();
+                    draggedCard = null;
+                    isTouchDragging = false;
+                });
+
+                card.addEventListener('touchcancel', () => {
+                    cancelLongPress();
+                    resetCard();
+                    draggedCard = null;
+                    isTouchDragging = false;
                 });
             });
         }
