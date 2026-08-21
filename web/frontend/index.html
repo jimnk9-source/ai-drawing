@@ -2024,23 +2024,40 @@
             ctx.globalAlpha = 1.0;
         }
 
-        // 서버 대기열 현황 조회 수집
+        // 서버 대기열 현황 조회 수집 (모바일/데스크톱 로컬 캐싱 적용)
         async function fetchTasksStatus() {
             try {
                 const response = await fetch('/api/tasks-status');
-                const tasks = await response.json();
+                let tasks = await response.json();
+
+                if (Array.isArray(tasks) && tasks.length > 0) {
+                    // 모바일 브라우저용 로컬 캐시 백업
+                    localStorage.setItem('vico_cached_tasks', JSON.stringify(tasks));
+                } else {
+                    // 서버 응답이 비어있으면 모바일 로컬 캐시에서 복원 시도
+                    const localData = localStorage.getItem('vico_cached_tasks');
+                    if (localData) {
+                        try { tasks = JSON.parse(localData); } catch (e) {}
+                    }
+                }
 
                 // 완료 알림 브로드캐스트 감지
-                tasks.forEach(async task => {
-                    if (task.status === 'complete' && !completedTaskNotificationSet.has(task.task_id)) {
-                        completedTaskNotificationSet.add(task.task_id);
-                        await showAlert(`🎉 작업 #${task.task_id} 출력이 완료되었습니다!\n플로터가 자동으로 원점으로 복귀하였습니다.`);
-                    }
-                });
-
-                renderStatusList(tasks);
+                if (Array.isArray(tasks)) {
+                    tasks.forEach(async task => {
+                        if (task.status === 'complete' && !completedTaskNotificationSet.has(task.task_id)) {
+                            completedTaskNotificationSet.add(task.task_id);
+                            await showAlert(`🎉 작업 #${task.task_id} 출력이 완료되었습니다!\n플로터가 자동으로 원점으로 복귀하였습니다.`);
+                        }
+                    });
+                    renderStatusList(tasks);
+                }
             } catch (e) {
                 console.error("Fetch Status Error:", e);
+                // 네트워크 에러 시 모바일 캐시에서 복원
+                const localData = localStorage.getItem('vico_cached_tasks');
+                if (localData) {
+                    try { renderStatusList(JSON.parse(localData)); } catch (err) {}
+                }
             }
         }
 
@@ -2233,6 +2250,7 @@
                 return `
                     <div class="history-card" data-task-id="${task.task_id}" draggable="false">
                         <div class="history-card-left">
+                            <div class="drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
                             <div class="history-thumb-box">
                                 <canvas class="thumb-canvas-svr-${task.task_id}" width="70" height="56" style="width:70px;height:56px;display:block;"></canvas>
                             </div>
@@ -2247,7 +2265,6 @@
                         <div class="history-actions">
                             <button class="star-btn ${isSaved ? 'active' : ''}" ${starAction} title="${isSaved ? '보관됨' : '보관'}">${isSaved ? '★' : '☆'}</button>
                             <button class="more-btn" onclick="toggleCardMenu(event, ${task.task_id})" title="메뉴">⋮</button>
-                            <div class="drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
 
                             <!-- 삼선 팝업 메뉴 -->
                             <div class="card-menu-popover" id="card-menu-${task.task_id}">
