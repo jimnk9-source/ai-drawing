@@ -13,19 +13,19 @@
         rel="stylesheet">
     <style>
         :root {
-            --bg-color: #f4f6fb;
-            --container-bg: #ffffff;
-            --container-border: #e2e8f0;
+            --bg-color: #EEF2F6;
+            --container-bg: #F0F4F8;
+            --container-border: #d8e2ee;
             --primary-color: #0084ff;
             --primary-hover: #0073e6;
             --primary-glow: rgba(0, 132, 255, 0.25);
             --secondary-color: #64748b;
-            --secondary-bg: #f1f5f9;
+            --secondary-bg: #e6ecf3;
             --danger-color: #ef4444;
-            --border-color: #e2e8f0;
+            --border-color: #d8e2ee;
             --text-color: #1e293b;
             --text-muted: #94a3b8;
-            --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+            --card-shadow: 0 10px 30px -5px rgba(100, 130, 160, 0.08), 0 4px 12px -2px rgba(100, 130, 160, 0.05);
             --btn-radius: 16px;
             --panel-radius: 24px;
         }
@@ -36,7 +36,7 @@
 
         body {
             font-family: 'Pretendard', 'Outfit', -apple-system, sans-serif;
-            background-color: var(--container-bg);
+            background-color: #EEF2F6;
             color: var(--text-color);
             margin: 0;
             padding: 0;
@@ -72,7 +72,7 @@
             height: 100vh;
             max-width: none;
             min-height: 0;
-            background: var(--container-bg);
+            background: #F0F4F8;
             border-radius: 0;
             border: none;
             box-shadow: none;
@@ -121,7 +121,7 @@
 
         .version-tag {
             font-size: 0.75rem;
-            background: #f1f5f9;
+            background: #e6ecf3;
             color: #64748b;
             padding: 3px 8px;
             border-radius: 12px;
@@ -165,7 +165,7 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            background: rgba(255, 255, 255, 0.92);
+            background: rgba(240, 244, 248, 0.95);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-top: 1px solid #e2e8f0;
@@ -257,7 +257,7 @@
         }
 
         .btn-landing-upload {
-            background: #ffffff;
+            background: #EEF2F6;
             color: var(--primary-color);
             border: 2.5px solid var(--primary-color);
             padding: 14px 24px;
@@ -337,7 +337,7 @@
             transform: scale(1.05);
         }
 
-        /* 캔버스 드로잉 파트 (시안 2, 3번 가로 배치) */
+        /* 캔버스 드로잉 파트 (종이 뷰포트 및 줌 지원) */
         .workspace-view {
             display: none;
             flex-direction: row;
@@ -351,8 +351,8 @@
 
         .canvas-container {
             flex: 1;
-            background: #ffffff;
-            border: 1.5px solid #e2e8f0;
+            background: #EEF2F6;
+            border: 1.5px solid #d8e2ee;
             border-radius: 24px;
             position: relative;
             overflow: hidden;
@@ -360,7 +360,19 @@
             align-items: center;
             justify-content: center;
             min-height: 0;
-            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.02);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.03);
+            touch-action: none; /* 핀치 줌 제스처용 브라우저 기본 스크롤 차단 */
+        }
+
+        /* 1:1 / 종이 비율 가이드 래퍼 */
+        .paper-wrapper {
+            position: relative;
+            background: #ffffff;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.04);
+            border-radius: 4px;
+            transform-origin: center center;
+            transition: transform 0.05s ease-out;
+            overflow: hidden;
         }
 
         #preview-image,
@@ -390,7 +402,7 @@
             bottom: 16px;
             left: 50%;
             transform: translateX(-50%);
-            background: #ffffff;
+            background: rgba(240, 244, 248, 0.92);
             border: 1px solid #e2e8f0;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
             border-radius: 30px;
@@ -411,6 +423,31 @@
             font-size: 1.1rem;
             cursor: pointer;
             padding: 2px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .orient-toggle-btn {
+            padding: 4px 6px;
+        }
+
+        .orient-icon {
+            display: inline-block;
+            border: 2px solid #475569;
+            border-radius: 3px;
+            background: rgba(71, 85, 105, 0.1);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .orient-icon.portrait {
+            width: 11px;
+            height: 17px;
+        }
+
+        .orient-icon.landscape {
+            width: 17px;
+            height: 11px;
         }
 
         /* 오른쪽 패널 / 수직 툴바 그룹 (가로모드 수직 스트립) */
@@ -422,7 +459,7 @@
             align-items: center;
             gap: 16px;
             position: relative;
-            background: #ffffff;
+            background: #EEF2F6;
             border: 1px solid #e2e8f0;
             border-radius: 24px;
             padding: 16px 8px;
@@ -474,7 +511,7 @@
         }
 
         .tool-card-btn:hover {
-            background: #f1f5f9;
+            background: #dde5ee;
             transform: scale(1.05);
         }
 
@@ -553,7 +590,7 @@
         }
 
         .tool-action-btn:hover {
-            background: #f1f5f9;
+            background: #dde5ee;
             color: var(--primary-color);
         }
 
@@ -626,7 +663,7 @@
         }
 
         .eraser-size-option:hover {
-            background: #f1f5f9;
+            background: #dde5ee;
         }
 
         .eraser-size-option.active {
@@ -728,9 +765,71 @@
             transition: background 0.15s;
         }
 
-        .shape-icon-btn:hover {
-            background: #f1f5f9;
-            color: var(--primary-color);
+        .canvas-add-popover {
+            display: none;
+            position: absolute;
+            top: 48px;
+            right: 12px;
+            z-index: 100;
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 4px 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            flex-direction: column;
+            align-items: center;
+            min-width: 68px;
+        }
+
+        .canvas-add-popover.show {
+            display: flex;
+        }
+
+        .popover-opt-btn {
+            width: 100%;
+            text-align: center;
+            padding: 6px 0;
+            border: none;
+            background: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color 0.15s;
+        }
+
+        .popover-opt-btn:hover {
+            color: #6366f1;
+        }
+
+        .popover-divider {
+            width: 100%;
+            height: 1px;
+            background-color: #e2e8f0;
+            margin: 1px 0;
+        }
+
+        .add-picker-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            white-space: nowrap;
+        }
+
+        .add-picker-btn:hover {
+            background: #eff6ff;
+            border-color: #6366f1;
+            color: #6366f1;
         }
 
         .btn-confirm-complete {
@@ -757,15 +856,62 @@
             display: none;
             flex-direction: column;
             flex: 1;
-            gap: 20px;
+            min-height: 0;
+            gap: 16px;
             padding-bottom: 75px;
             box-sizing: border-box;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .history-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .sort-control-box {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .sort-field-btn {
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-size: 0.88rem;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+            padding: 6px 4px 6px 8px;
+            transition: color 0.15s, transform 0.15s;
+            transform: translateY(1.5px);
+        }
+
+        .sort-field-btn:hover {
+            color: #6366f1;
+        }
+
+        .sort-dir-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 8px;
+            transition: color 0.15s, background 0.15s;
+        }
+
+        .sort-dir-btn:hover {
+            color: #6366f1;
+            background: rgba(99, 102, 241, 0.08);
         }
 
         .history-title-box h2 {
@@ -808,8 +954,10 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            max-height: calc(100vh - 220px);
-            overflow-y: visible;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             padding-right: 4px;
             padding-bottom: 60px;
         }
@@ -1317,15 +1465,35 @@
         <main class="workspace-view" id="view-workspace">
             <!-- 좌측 캔버스 영역 -->
             <div class="canvas-container" id="canvas-container">
-                <img id="preview-image" src="#" alt="Preview" style="display: none;">
-                <canvas id="input-canvas"></canvas>
-                <canvas id="simulation-canvas"></canvas>
+                <!-- 종이 느낌 백그라운드 래퍼 -->
+                <div class="paper-wrapper" id="paper-wrapper">
+                    <img id="preview-image" src="#" alt="Preview" style="display: none;">
+                    <canvas id="input-canvas"></canvas>
+                    <canvas id="simulation-canvas"></canvas>
+                </div>
 
-                <button class="btn-canvas-upload" id="btn-canvas-upload" onclick="triggerFileInput()" title="사진 업로드">
+                <!-- 줌 및 종이 방향 조절 컨트롤러 -->
+                <div class="zoom-controller">
+                    <button class="zoom-btn orient-toggle-btn" onclick="togglePaperOrientation(event)" id="paper-orient-btn" title="종이 세로/가로 방향 전환">
+                        <span class="orient-icon portrait" id="paper-orient-icon"></span>
+                    </button>
+                    <div style="width: 1px; height: 14px; background: #cbd5e1;"></div>
+                    <button class="zoom-btn" onclick="changeZoom(-0.15)" title="축소">-</button>
+                    <span id="zoom-level-text" style="min-width: 40px; text-align: center;">100%</span>
+                    <button class="zoom-btn" onclick="changeZoom(0.15)" title="확대">+</button>
+                    <button class="zoom-btn" onclick="resetZoom()" title="원래 크기 (100%)" style="font-size: 0.8rem; margin-left: 2px;">↺</button>
+                </div>
+
+                <button class="btn-canvas-upload" id="btn-canvas-upload" onclick="toggleCanvasAddMenu(event)" title="추가 (이미지/텍스트)">
                     <svg viewBox="0 0 24 24">
                         <path d="M12 5v14M5 12h14" />
                     </svg>
                 </button>
+                <div class="canvas-add-popover" id="canvas-add-popover">
+                    <button class="popover-opt-btn" onclick="triggerFileInput(event)">이미지</button>
+                    <div class="popover-divider"></div>
+                    <button class="popover-opt-btn" onclick="promptAddText(event)">텍스트</button>
+                </div>
 
                 <button id="skip-button" onclick="skipSimulation()"
                     style="display:none; position: absolute; top: 12px; right: 12px; z-index: 40; padding: 6px 12px; background: rgba(0,0,0,0.6); color:#fff; border:none; border-radius:10px; cursor:pointer;">스킵</button>
@@ -1337,13 +1505,13 @@
                 <div class="tools-row-container">
                     <div class="tools-btn-row">
                         <div class="tools-column">
-                            <button class="tool-card-btn active" id="tool-pen" onclick="setEditTool('pen')" title="펜">
+                            <button class="tool-card-btn active" id="tool-pen" onclick="setEditTool('pen', event)" title="펜">
                                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                             </button>
-                            <button class="tool-card-btn" id="tool-eraser" onclick="setEditTool('eraser')" title="지우개">
+                            <button class="tool-card-btn" id="tool-eraser" onclick="setEditTool('eraser', event)" title="지우개">
                                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
                             </button>
-                            <button class="tool-card-btn" id="tool-shape" onclick="setEditTool('shape')" title="도형">
+                            <button class="tool-card-btn" id="tool-shape" onclick="setEditTool('shape', event)" title="도형">
                                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3.3a.7.7 0 0 1 1.2 0l3.726 5.621A.7.7 0 0 1 15.7 10z"/><rect width="7" height="7" x="3" y="14" rx="1"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
                             </button>
 
@@ -1422,18 +1590,19 @@
                 <div class="history-title-box">
                     <h2>내 그림</h2>
                 </div>
+                <div class="sort-control-box">
+                    <button id="sort-field-btn" class="sort-field-btn" onclick="toggleSortField()" title="정렬 기준 변경 (날짜순/이름순)">
+                        <span id="sort-field-label">날짜순</span>
+                    </button>
+                    <button id="sort-dir-btn" class="sort-dir-btn" onclick="toggleSortDirection()" title="정렬 방향 (오름차순/내림차순)">
+                        <span id="sort-arrow">↓</span>
+                    </button>
+                </div>
             </div>
 
             <!-- 대기열 / 완료 카드 목록 -->
             <div class="history-list" id="history-card-list">
-                <!-- JS 랜더링 -->
-            </div>
-
-            <div class="history-footer">
-                <button class="btn-clear-all" onclick="clearServerQueue()">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                    모두 삭제
-                </button>
+                <!-- JS 랜더링 (목록 하단에 모두 삭제 버튼 포함) -->
             </div>
         </main>
     </div>
@@ -1477,6 +1646,55 @@
             background: #ef4444;
         }
     </style>
+
+    <!-- 이미지 크게 보기 팝업 모달 -->
+    <div id="preview-modal-overlay" style="
+        display:none; position:fixed; inset:0; z-index:9500;
+        background:rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);
+        align-items:center; justify-content:center; padding: 20px;
+    " onclick="closePreviewModal(event)">
+        <div id="preview-modal-box" style="
+            background: #ffffff; border-radius: 24px; padding: 24px 20px 20px;
+            width: 100%; max-width: 440px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            position: relative; animation: modalPop 0.22s cubic-bezier(.34,1.56,.64,1);
+        " onclick="event.stopPropagation()">
+            <button onclick="closePreviewModal()" style="
+                position: absolute; top: 16px; right: 16px; width: 32px; height: 32px;
+                border-radius: 50%; border: none; background: #f1f5f9; color: #64748b;
+                font-weight: bold; font-size: 16px; cursor: pointer; display: flex;
+                align-items: center; justify-content: center; transition: all 0.15s ease;
+            ">✕</button>
+
+            <div style="text-align: center; width: 100%;">
+                <h3 id="preview-modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;"></h3>
+            </div>
+
+            <!-- 크게 표시될 캔버스 컨테이너 (종이 느낌 백그라운드) -->
+            <div style="
+                width: 100%; height: 380px; background: #f8fafc; border-radius: 16px;
+                display: flex; align-items: center; justify-content: center;
+                overflow: hidden; padding: 12px; box-sizing: border-box; position: relative;
+            ">
+                <canvas id="preview-large-canvas" style="display: block; max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); background: #ffffff;"></canvas>
+            </div>
+
+            <div style="display: flex; gap: 10px; width: 100%; margin-top: 4px;">
+                <button id="preview-reedit-btn" style="
+                    flex: 1; padding: 12px; border-radius: 12px; border: 1.5px solid #e2e8f0;
+                    background: #f8fafc; color: #334155; font-weight: 700; font-size: 0.9rem; cursor: pointer;
+                    display: flex; align-items: center; justify-content: center; gap: 6px;
+                ">수정하기</button>
+                <button id="preview-close-btn" onclick="closePreviewModal()" style="
+                    flex: 1; padding: 12px; border-radius: 12px; border: none;
+                    background: #6366f1; color: #ffffff; font-weight: 700; font-size: 0.9rem; cursor: pointer;
+                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+                ">확인</button>
+            </div>
+        </div>
+    </div>
+
+
 
     <!-- 하단 내비게이션 바 (홈, 그리기, 내 그림) -->
     <nav class="bottom-nav-bar" id="bottom-nav-bar">
@@ -1563,7 +1781,10 @@
             }
 
             if (viewName === 'workspace') {
-                setTimeout(resizeCanvas, 50);
+                setTimeout(() => {
+                    resizeCanvas();
+                    drawAll();
+                }, 50);
             } else if (viewName === 'history') {
                 fetchTasksStatus();
             }
@@ -1580,13 +1801,30 @@
             if (dropdown) dropdown.classList.remove('show');
         });
 
-        function triggerFileInput() {
+        function triggerFileInput(e) {
+            if (e) e.stopPropagation();
             fileInput.click();
         }
 
         function startDirectDraw() {
-            switchView('workspace');
-            setMode('drawing');
+            // 화면 전환
+            currentView = 'workspace';
+            document.getElementById('view-landing').style.display = 'none';
+            document.getElementById('view-workspace').style.display = 'flex';
+            const bottomNav = document.getElementById('bottom-nav-bar');
+            if (bottomNav) bottomNav.style.display = 'flex';
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navWs = document.getElementById('nav-workspace');
+            if (navWs) navWs.classList.add('active');
+
+            // mode를 idle로 강제하여 setMode('drawing')이 새 시작 로직을 타도록 설정
+            mode = 'idle';
+            simData = null;
+            // DOM 렌더링 이후 setMode 실행
+            setTimeout(() => {
+                setMode('drawing');
+                setTimeout(resizeCanvas, 30);
+            }, 30);
         }
 
         // 경량 깊은 복사 함수 (JSON.stringify 대비 10배 이상 고속)
@@ -1600,18 +1838,122 @@
             return shapesArr.map(s => ({ ...s }));
         }
 
+        // Zoom 및 종이 뷰포트 상태 관리 변수
+        let zoomScale = 1.0;
+        let zoomPanPos = { x: 0, y: 0 };
+        const MIN_ZOOM = 0.5;
+        const MAX_ZOOM = 3.5;
+
+        function updateZoomTransform() {
+            const paper = document.getElementById('paper-wrapper');
+            const zoomText = document.getElementById('zoom-level-text');
+            if (paper) {
+                paper.style.transform = `translate(${zoomPanPos.x}px, ${zoomPanPos.y}px) scale(${zoomScale})`;
+            }
+            if (zoomText) {
+                zoomText.textContent = `${Math.round(zoomScale * 100)}%`;
+            }
+        }
+
+        function changeZoom(delta, centerPt = null) {
+            const oldScale = zoomScale;
+            zoomScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomScale + delta));
+            
+            // 줌 변경에 따른 자연스러운 위치 마우스 중심 피벗 연산 (centerPt가 주어진 경우)
+            if (centerPt && oldScale !== zoomScale) {
+                const container = document.getElementById('canvas-container');
+                if (container) {
+                    const rect = container.getBoundingClientRect();
+                    const cx = centerPt.x - rect.left - rect.width / 2;
+                    const cy = centerPt.y - rect.top - rect.height / 2;
+                    const factor = (zoomScale / oldScale) - 1;
+                    zoomPanPos.x -= (cx - zoomPanPos.x) * factor;
+                    zoomPanPos.y -= (cy - zoomPanPos.y) * factor;
+                }
+            }
+            updateZoomTransform();
+        }
+
+        function resetZoom() {
+            zoomScale = 1.0;
+            zoomPanPos = { x: 0, y: 0 };
+            updateZoomTransform();
+        }
+
+        // 종이 수동 방향 상태 변수 ('portrait': 세로 기본, 'landscape': 가로)
+        let overridePaperOrientation = 'portrait';
+
+        function togglePaperOrientation(e) {
+            if (e) e.stopPropagation();
+            if (overridePaperOrientation === 'portrait') {
+                overridePaperOrientation = 'landscape';
+            } else if (overridePaperOrientation === 'landscape') {
+                overridePaperOrientation = 'portrait';
+            } else {
+                const isCurrentlyLandscape = window.innerWidth > window.innerHeight;
+                overridePaperOrientation = isCurrentlyLandscape ? 'portrait' : 'landscape';
+            }
+
+            const orientIcon = document.getElementById('paper-orient-icon');
+            if (orientIcon) {
+                orientIcon.className = overridePaperOrientation === 'landscape' ? 'orient-icon landscape' : 'orient-icon portrait';
+            }
+
+            // 시뮬레이션 데이터 가로/세로 비율 동기화
+            if (simData) {
+                const isLandscape = (overridePaperOrientation === 'landscape');
+                const targetW = isLandscape ? 800 : 600;
+                const targetH = isLandscape ? 600 : 800;
+                simData.width = targetW;
+                simData.height = targetH;
+            }
+
+            resizeCanvas();
+        }
+
         function resizeCanvas() {
             const container = document.getElementById('canvas-container');
-            if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
-                inputCanvas.width = container.offsetWidth;
-                inputCanvas.height = container.offsetHeight;
-                simCanvas.width = container.offsetWidth;
-                simCanvas.height = container.offsetHeight;
+            const paper = document.getElementById('paper-wrapper');
+            if (container && paper && container.offsetWidth > 0 && container.offsetHeight > 0) {
+                const availW = container.offsetWidth - 32;
+                const availH = container.offsetHeight - 32;
+
+                // 종이 비율 결정 (수동 토글 override vs 기본 창 크기 자동)
+                let isLandscape = (overridePaperOrientation !== null) 
+                    ? (overridePaperOrientation === 'landscape')
+                    : (window.innerWidth > window.innerHeight);
+
+                let paperRatio = isLandscape ? (200 / 138) : (138 / 200);
+
+                if (simData && simData.width && simData.height) {
+                    paperRatio = simData.width / simData.height;
+                }
+
+                let paperW = availW;
+                let paperH = paperW / paperRatio;
+
+                if (paperH > availH) {
+                    paperH = availH;
+                    paperW = paperH * paperRatio;
+                }
+
+                paperW = Math.max(200, Math.floor(paperW));
+                paperH = Math.max(200, Math.floor(paperH));
+
+                paper.style.width = paperW + 'px';
+                paper.style.height = paperH + 'px';
+
+                inputCanvas.width = paperW;
+                inputCanvas.height = paperH;
+                simCanvas.width = paperW;
+                simCanvas.height = paperH;
+
                 if (mode === 'simulating' && !animationId) {
                     skipSimulation();
                 } else {
                     drawAll();
                 }
+                updateZoomTransform();
             }
         }
 
@@ -1705,6 +2047,27 @@
 
         // 태스크 컨텍스트 캐시 (별표 즉시 복원용)
         let cachedTasks = [];
+
+        // 정렬 상태 ({field: 'date'|'name', dir: 'asc'|'desc'})
+        let currentSortMode = { field: 'date', dir: 'desc' };
+
+        function toggleSortField() {
+            currentSortMode.field = currentSortMode.field === 'date' ? 'name' : 'date';
+            const labelEl = document.getElementById('sort-field-label');
+            if (labelEl) {
+                labelEl.textContent = currentSortMode.field === 'date' ? '날짜순' : '이름순';
+            }
+            if (cachedTasks.length > 0) renderStatusList(cachedTasks);
+        }
+
+        function toggleSortDirection() {
+            currentSortMode.dir = currentSortMode.dir === 'desc' ? 'asc' : 'desc';
+            const arrowEl = document.getElementById('sort-arrow');
+            if (arrowEl) {
+                arrowEl.textContent = currentSortMode.dir === 'desc' ? '↓' : '↑';
+            }
+            if (cachedTasks.length > 0) renderStatusList(cachedTasks);
+        }
 
         // 레거시 DOM 조작 안전 대처용 방어 변수
         const workArea = document.getElementById('canvas-container');
@@ -1803,64 +2166,176 @@
             localStorage.setItem('vico_saved_drawings', JSON.stringify(list));
         }
 
-        // 실시간 대기열에서 로컬 보관 목록으로 복제/저장
-        function saveTaskToLocal(event, taskId, contourDataString) {
-            event.stopPropagation();
-            try {
-                const contours = JSON.parse(decodeURIComponent(contourDataString));
-                const list = getLocalSavedDrawings();
-                const exists = list.some(item => item.server_task_id === taskId);
-                if (exists) return;
+        // 특정 task가 로컬 보관함에 들어있는지 판단 (task_id 기반 - 동일 그림이라도 각각 독립 관리)
+        function isTaskSavedInLocal(task) {
+            const list = getLocalSavedDrawings();
+            if (!task || !list || list.length === 0) return false;
+            const targetId = (typeof task === 'object') ? task.task_id : task;
+            return list.some(item => String(item.server_task_id) === String(targetId));
+        }
 
+        // 카드 재배치 애니메이션 헬퍼 (FLIP 애니메이션 기법)
+        function animateCardReorder(container, updateDomFn) {
+            if (!container) {
+                updateDomFn();
+                return;
+            }
+            // 1. First: 변경 전 모든 카드의 Y 위치 저장
+            const cards = Array.from(container.querySelectorAll('.history-card'));
+            const firstPositions = new Map();
+            cards.forEach(card => {
+                firstPositions.set(card, card.getBoundingClientRect().top);
+            });
+
+            // 2. DOM 업데이트 (위치 변경)
+            updateDomFn();
+
+            // 3. Last, Invert, Play: 위치 차이를 계산해 부드럽고 빠른 애니메이션 실행
+            const updatedCards = Array.from(container.querySelectorAll('.history-card'));
+            updatedCards.forEach(card => {
+                const firstTop = firstPositions.get(card);
+                if (firstTop !== undefined) {
+                    const lastTop = card.getBoundingClientRect().top;
+                    const deltaY = firstTop - lastTop;
+                    if (Math.abs(deltaY) > 0.5) {
+                        card.style.transition = 'none';
+                        card.style.transform = `translateY(${deltaY}px)`;
+                        
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                card.style.transition = 'transform 0.28s cubic-bezier(0.2, 0, 0.2, 1)';
+                                card.style.transform = 'translateY(0)';
+                            });
+                        });
+                        
+                        setTimeout(() => {
+                            card.style.transition = '';
+                            card.style.transform = '';
+                        }, 300);
+                    }
+                }
+            });
+        }
+
+        // 별표 토글 - 카드 DOM 요소를 직접 이동하여 즉각 위치 재배치 (빠른 애니메이션 연출)
+        function toggleStarTask(event, taskId) {
+            event.stopPropagation();
+            const btn = event.currentTarget;
+            const container = document.getElementById('history-card-list');
+            const card = container ? container.querySelector(`[data-task-id="${taskId}"]`) : null;
+
+            const cachedTask = cachedTasks.find(t => t.task_id === taskId);
+            if (!cachedTask || !cachedTask.contours) {
+                console.error('toggleStarTask: cachedTask not found for id', taskId);
+                return;
+            }
+
+            const taskObj = { task_id: taskId, contours: cachedTask.contours };
+
+            if (isTaskSavedInLocal(taskObj)) {
+                // ── 보관 해제 ──
+                const newList = getLocalSavedDrawings().filter(item => item.server_task_id !== taskId);
+                saveLocalSavedDrawings(newList);
+
+                // 버튼 즉시 업데이트
+                if (btn) {
+                    btn.textContent = '☆';
+                    btn.classList.remove('active');
+                    btn.title = '보관';
+                }
+
+                // 카드를 별표 없는 영역의 맨 앞으로 애니메이션과 함께 이동
+                animateCardReorder(container, () => {
+                    if (card && container) {
+                        const allCards = Array.from(container.querySelectorAll('.history-card'));
+                        const firstUnstarred = allCards.find(c => {
+                            const tId = parseInt(c.dataset.taskId);
+                            if (tId === taskId) return false;
+                            const t = cachedTasks.find(ct => ct.task_id === tId);
+                            return t && !isTaskSavedInLocal(t);
+                        });
+                        if (firstUnstarred) {
+                            container.insertBefore(card, firstUnstarred);
+                        } else {
+                            const footer = container.querySelector('.history-footer');
+                            footer ? container.insertBefore(card, footer) : container.appendChild(card);
+                        }
+                    }
+                });
+            } else {
+                // ── 보관 추가 ──
+                const list = getLocalSavedDrawings();
                 list.push({
                     id: Date.now(),
                     server_task_id: taskId,
-                    contours: contours,
-                    width: simData ? simData.width : simCanvas.width,
-                    height: simData ? simData.height : simCanvas.height
+                    contours: cachedTask.contours,
+                    width: simData ? simData.width : (cachedTask.width || 600),
+                    height: simData ? simData.height : (cachedTask.height || 800)
                 });
                 saveLocalSavedDrawings(list);
 
-                // 별표 버튼 즉시 ★로 업데이트 + onclick closure로 교체
-                const btn = event.currentTarget;
+                // 버튼 즉시 업데이트
                 if (btn) {
                     btn.textContent = '★';
                     btn.classList.add('active');
                     btn.title = '보관됨';
-                    btn.onclick = (e) => { e.stopPropagation(); unsaveTaskFromServer(e, taskId); };
                 }
 
+                // 카드를 목록 최상단으로 애니메이션과 함께 이동
+                animateCardReorder(container, () => {
+                    if (card && container) {
+                        container.prepend(card);
+                    }
+                });
+            }
+
+            // 보관함 사이드 목록만 업데이트 (전체 재렌더 없음)
+            renderSavedList();
+        }
+
+        // (하위호환용) encodedContour 문자열을 받아 저장하는 레거시 함수
+        function saveTaskToLocal(event, taskId, contourDataString) {
+            event.stopPropagation();
+            try {
+                const contours = JSON.parse(decodeURIComponent(contourDataString));
+                const cachedTask = cachedTasks.find(t => t.task_id === taskId);
+                const taskObj = cachedTask || { task_id: taskId, contours: contours };
+                if (isTaskSavedInLocal(taskObj)) return;
+
+                const list = getLocalSavedDrawings();
+                list.push({
+                    id: Date.now(),
+                    server_task_id: taskId,
+                    contours: cachedTask ? cachedTask.contours : contours,
+                    width: simData ? simData.width : simCanvas.width,
+                    height: simData ? simData.height : simCanvas.height
+                });
+                saveLocalSavedDrawings(list);
                 renderSavedList();
             } catch (e) {
-                console.error("Save to Local Error:", e);
+                console.error('Save to Local Error:', e);
             }
         }
 
-        // 서버 task_id 기준 보관 해제
+        // 서버 task_id 기준 보관 해제 (외부 호출용)
         function unsaveTaskFromServer(event, taskId) {
             event.stopPropagation();
+            const cachedTask = cachedTasks.find(t => t.task_id === taskId);
             const list = getLocalSavedDrawings();
-            const newList = list.filter(item => item.server_task_id !== taskId);
-            saveLocalSavedDrawings(newList);
 
-            // cachedTasks에서 contour 데이터 확보 → 즉시 onClick 복원 (서버 응답 없이)
-            const btn = event.currentTarget;
-            if (btn) {
-                btn.textContent = '☆';
-                btn.classList.remove('active');
-                btn.title = '보관';
-
-                // cachedTasks에서 해당 task의 contour 조회
-                const cachedTask = cachedTasks.find(t => t.task_id === taskId);
-                if (cachedTask && cachedTask.contours) {
-                    const encoded = encodeURIComponent(JSON.stringify(cachedTask.contours));
-                    // 서버 요청 없이 즉시 saveTaskToLocal onclick 복원
-                    btn.onclick = (e) => { e.stopPropagation(); saveTaskToLocal(e, taskId, encoded); };
-                }
+            let newList;
+            if (cachedTask && cachedTask.contours) {
+                const taskStr = JSON.stringify(cachedTask.contours);
+                newList = list.filter(item => {
+                    if (item.server_task_id === taskId) return false;
+                    if (item.contours && JSON.stringify(item.contours) === taskStr) return false;
+                    return true;
+                });
+            } else {
+                newList = list.filter(item => item.server_task_id !== taskId);
             }
-
+            saveLocalSavedDrawings(newList);
             renderSavedList();
-            fetchTasksStatus();
         }
 
 
@@ -1964,7 +2439,7 @@
             }, 50);
         }
 
-        // 미니 썸네일 드로잉 (HiDPI 고해상도 + 곡선 보간으로 디테일 강화)
+        // 미니 썸네일 드로잉 (HiDPI 고해상도 + 곡선 보간 / 가로 모드 그림은 90도 회전하여 썸네일에 꽉 차게 렌더링)
         function drawThumb(canvas, contours, w, h) {
             const dpr = window.devicePixelRatio || 2;
             const displayW = canvas.offsetWidth || canvas.width || 45;
@@ -1985,35 +2460,23 @@
             ctx.rect(0, 0, displayW, displayH);
             ctx.clip();
 
-            // contours의 실제 경계영역(Bounding Box) 산출
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            contours.forEach(c => {
-                c.forEach(pt => {
-                    if (pt.x < minX) minX = pt.x;
-                    if (pt.y < minY) minY = pt.y;
-                    if (pt.x > maxX) maxX = pt.x;
-                    if (pt.y > maxY) maxY = pt.y;
-                });
-            });
+            // 원본 캔버스 크기
+            const canvasW = w || 800;
+            const canvasH = h || 600;
 
-            const bboxW = (maxX - minX) || 1;
-            const bboxH = (maxY - minY) || 1;
-
-            // 그림이 가로 형태(bboxW > bboxH)인지 확인하여 세로 박스에 맞게 90도 회전 적용
-            const isLandscape = bboxW > bboxH;
-
-            // 회전 시 effectiveWidth, effectiveHeight 설정
-            const effW = isLandscape ? bboxH : bboxW;
-            const effH = isLandscape ? bboxW : bboxH;
-
-            const padding = 3;
+            const padding = 2;
             const availW = displayW - padding * 2;
             const availH = displayH - padding * 2;
 
-            const scale = Math.min(availW / effW, availH / effH);
+            const scale = Math.min(availW / canvasW, availH / canvasH);
+            const offsetX = padding + (availW - canvasW * scale) / 2;
+            const offsetY = padding + (availH - canvasH * scale) / 2;
 
-            ctx.strokeStyle = "#6366f1";
-            ctx.lineWidth = 0.9;
+            // 0.8mm 출력 펜 굵기 반영: 썸네일 스케일에 맞춘 비례 두께 계산
+            const strokeMm = 0.8;
+            const thumbStrokePx = Math.max(1.2, (scale * strokeMm));
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = thumbStrokePx;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.globalAlpha = 0.95;
@@ -2023,22 +2486,10 @@
                 ctx.beginPath();
 
                 const getTransformedPt = (pt) => {
-                    // 1. 바운딩 박스 기준 0~1 정규화 좌표
-                    let nx = (pt.x - minX) / bboxW;
-                    let ny = (pt.y - minY) / bboxH;
-
-                    let finalX, finalY;
-                    if (isLandscape) {
-                        // 가로 그림을 시계 방향 90도 회전 (x -> 1-y, y -> x)
-                        const rx = 1 - ny;
-                        const ry = nx;
-                        finalX = padding + (availW - effW * scale) / 2 + rx * (effW * scale);
-                        finalY = padding + (availH - effH * scale) / 2 + ry * (effH * scale);
-                    } else {
-                        finalX = padding + (availW - effW * scale) / 2 + nx * (effW * scale);
-                        finalY = padding + (availH - effH * scale) / 2 + ny * (effH * scale);
-                    }
-                    return { x: finalX, y: finalY };
+                    return {
+                        x: offsetX + (pt.x / canvasW) * (canvasW * scale),
+                        y: offsetY + (pt.y / canvasH) * (canvasH * scale)
+                    };
                 };
 
                 const startPt = getTransformedPt(contour[0]);
@@ -2133,9 +2584,69 @@
 
         function closeCustomModal(value) {
             const overlay = document.getElementById('custom-modal-overlay');
-            overlay.classList.remove('show');
-            overlay.style.display = 'none';
+            if (overlay) {
+                overlay.classList.remove('show');
+                overlay.style.display = 'none';
+            }
             if (_modalResolve) { _modalResolve(value ?? null); _modalResolve = null; }
+        }
+
+        // 그림 확대 미리보기 모달 열기/닫기
+        function openPreviewModal(event, taskId) {
+            if (event) event.stopPropagation();
+            const task = cachedTasks.find(t => t.task_id === taskId);
+            if (!task || !task.contours) return;
+
+            const overlay = document.getElementById('preview-modal-overlay');
+            if (!overlay) return;
+
+            const customNames = getTaskCustomNames();
+            const displayName = customNames[taskId] || `#${taskId}`;
+            document.getElementById('preview-modal-title').textContent = `${displayName}`;
+
+            const reeditBtn = document.getElementById('preview-reedit-btn');
+            if (reeditBtn) {
+                reeditBtn.onclick = (e) => {
+                    closePreviewModal();
+                    reEditTask(e, taskId);
+                };
+            }
+
+            overlay.style.display = 'flex';
+
+            // 고해상도 팝업 캔버스 드로잉
+            setTimeout(() => {
+                const canvas = document.getElementById('preview-large-canvas');
+                if (canvas) {
+                    const w = task.width || 800;
+                    const h = task.height || 1200;
+                    
+                    // 모달 안 캔버스 크기 지정 (최대 380x360 뷰포트 맞춤)
+                    const containerBox = canvas.parentElement;
+                    const maxW = containerBox.clientWidth - 24;
+                    const maxH = containerBox.clientHeight - 24;
+                    
+                    const ratio = w / h;
+                    let drawW = maxW;
+                    let drawH = drawW / ratio;
+
+                    if (drawH > maxH) {
+                        drawH = maxH;
+                        drawW = drawH * ratio;
+                    }
+
+                    canvas.style.width = Math.round(drawW) + 'px';
+                    canvas.style.height = Math.round(drawH) + 'px';
+
+                    drawThumb(canvas, task.contours, w, h);
+                }
+            }, 30);
+        }
+
+        function closePreviewModal(event) {
+            if (event && event.target.id !== 'preview-modal-overlay' && event.target.tagName !== 'BUTTON') return;
+            const overlay = document.getElementById('preview-modal-overlay');
+            if (overlay) overlay.style.display = 'none';
         }
 
         // 확인/취소 팝업
@@ -2247,23 +2758,75 @@
                 return;
             }
 
-            // 사용자 지정 순서 정렬
-            const savedOrder = getTaskOrder();
-            if (savedOrder.length > 0) {
-                tasks.sort((a, b) => {
-                    const idxA = savedOrder.indexOf(a.task_id);
-                    const idxB = savedOrder.indexOf(b.task_id);
-                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                    if (idxA !== -1) return -1;
-                    if (idxB !== -1) return 1;
-                    return 0;
+            // 정렬 규칙: 1순위: 별표(★) 여부 (무조건 최상단)
+            //            2순위: 사용자 선택 정렬 기준 (이름순 / 날짜순, 오름/내림)
+            const customNames = getTaskCustomNames();
+            const sm = currentSortMode;
+            tasks.sort((a, b) => {
+                const aStarred = isTaskSavedInLocal(a);
+                const bStarred = isTaskSavedInLocal(b);
+                if (aStarred && !bStarred) return -1;
+                if (!aStarred && bStarred) return 1;
+
+                const dir = sm.dir === 'asc' ? 1 : -1;
+                if (sm.field === 'name') {
+                    const nameA = (customNames[a.task_id] || `#${a.task_id}`).toLowerCase();
+                    const nameB = (customNames[b.task_id] || `#${b.task_id}`).toLowerCase();
+                    return nameA < nameB ? -dir : nameA > nameB ? dir : 0;
+                } else {
+                    // 날짜순: task_id를 날짜 대리로 사용 (큰 id = 최신)
+                    return dir * (a.task_id - b.task_id) * -1;
+                }
+            });
+
+            // 이미 존재하는 카드들의 경우, innerHTML 전체 재생성 대신 DOM 위치만 순서대로 이동 (스무스 애니메이션)
+            const existingCards = Array.from(container.querySelectorAll('.history-card'));
+            const canAnimate = existingCards.length > 0 && existingCards.length === tasks.length;
+
+            if (canAnimate) {
+                // 카드 순서 재배치 + 별표 상태 및 클릭 이벤트 동기화
+                const cardMap = new Map();
+                existingCards.forEach(c => cardMap.set(parseInt(c.dataset.taskId), c));
+
+                tasks.forEach(t => {
+                    const card = cardMap.get(t.task_id);
+                    if (!card) return;
+                    
+                    // card-left 클릭 이벤트 갱신
+                    const cardLeft = card.querySelector('.history-card-left');
+                    if (cardLeft) {
+                        cardLeft.onclick = (e) => openPreviewModal(e, t.task_id);
+                    }
+
+                    // 별표 버튼 상태 동기화
+                    const starBtn = card.querySelector('.star-btn');
+                    if (starBtn) {
+                        const isSaved = isTaskSavedInLocal(t);
+                        starBtn.textContent = isSaved ? '★' : '☆';
+                        starBtn.title = isSaved ? '보관됨' : '보관';
+                        starBtn.onclick = (e) => toggleStarTask(e, t.task_id);
+                        if (isSaved) {
+                            starBtn.classList.add('active');
+                        } else {
+                            starBtn.classList.remove('active');
+                        }
+                    }
                 });
+
+                animateCardReorder(container, () => {
+                    const footer = container.querySelector('.history-footer');
+                    tasks.forEach(t => {
+                        const card = cardMap.get(t.task_id);
+                        if (card) {
+                            footer ? container.insertBefore(card, footer) : container.appendChild(card);
+                        }
+                    });
+                });
+                return;
             }
 
-            const savedList = getLocalSavedDrawings();
-            const customNames = getTaskCustomNames();
 
-            container.innerHTML = tasks.map(task => {
+            const cardsHtml = tasks.map(task => {
                 let badgeHtml = '';
                 if (task.status === 'pending') {
                     badgeHtml = `<span class="badge-pending">대기 중</span>`;
@@ -2275,18 +2838,14 @@
                     badgeHtml = `<span class="badge-error">오류</span>`;
                 }
 
-                const encodedContour = encodeURIComponent(JSON.stringify(task.contours));
-                const isSaved = savedList.some(item => item.server_task_id === task.task_id);
-                const starAction = isSaved
-                    ? `onclick="unsaveTaskFromServer(event, ${task.task_id})"`
-                    : `onclick="saveTaskToLocal(event, ${task.task_id}, '${encodedContour}')"`;
+                const isSaved = isTaskSavedInLocal(task);
 
                 const displayName = customNames[task.task_id] || `#${task.task_id}`;
 
                 return `
                     <div class="history-card" data-task-id="${task.task_id}" draggable="false">
-                        <div class="history-card-left">
-                            <div class="drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
+                        <div class="history-card-left" onclick="openPreviewModal(event, ${task.task_id})" style="cursor: pointer;" title="그림 크게 보기">
+                            <div class="drag-handle" onclick="event.stopPropagation()" title="드래그하여 순서 변경">⋮⋮</div>
                             <div class="history-thumb-box">
                                 <canvas class="thumb-canvas-svr-${task.task_id}" width="45" height="62" style="width:45px;height:62px;display:block;"></canvas>
                             </div>
@@ -2299,13 +2858,13 @@
                             </div>
                         </div>
                         <div class="history-actions">
-                            <button class="star-btn ${isSaved ? 'active' : ''}" ${starAction} title="${isSaved ? '보관됨' : '보관'}">${isSaved ? '★' : '☆'}</button>
+                            <button class="star-btn ${isSaved ? 'active' : ''}" onclick="toggleStarTask(event, ${task.task_id})" title="${isSaved ? '보관됨' : '보관'}">${isSaved ? '★' : '☆'}</button>
                             <button class="more-btn" onclick="toggleCardMenu(event, ${task.task_id})" title="메뉴">⋮</button>
 
                             <!-- 삼선 팝업 메뉴 -->
                             <div class="card-menu-popover" id="card-menu-${task.task_id}">
                                 <button class="card-menu-item" onclick="reEditTask(event, ${task.task_id})">
-                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg> 재출력 (수정)
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg> 수정
                                 </button>
                                 <button class="card-menu-item" onclick="renameTask(event, ${task.task_id})">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> 이름 변경
@@ -2319,6 +2878,18 @@
                 `;
             }).join('');
 
+            // 카드 목록 아래에 '모두 삭제' 버튼 배치
+            const clearFooterHtml = `
+                <div class="history-footer" style="margin-top: 8px; margin-bottom: 24px;">
+                    <button class="btn-clear-all" onclick="clearServerQueue()">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        모두 삭제
+                    </button>
+                </div>
+            `;
+
+            container.innerHTML = cardsHtml + (tasks.length > 0 ? clearFooterHtml : '');
+
             // 드래그 앤 드롭 이벤트 바인딩
             initCardDragAndDrop(container);
 
@@ -2326,8 +2897,8 @@
                 tasks.forEach(task => {
                     const canvas = document.querySelector(`.thumb-canvas-svr-${task.task_id}`);
                     if (canvas) {
-                        const w = simData ? simData.width : simCanvas.width;
-                        const h = simData ? simData.height : simCanvas.height;
+                        const w = task.width || (simData ? simData.width : simCanvas.width);
+                        const h = task.height || (simData ? simData.height : simCanvas.height);
                         drawThumb(canvas, task.contours, w, h);
                     }
                 });
@@ -2425,7 +2996,7 @@
                     container.insertBefore(draggedCard, next ? card.nextSibling : card);
                 });
 
-                // ─── 터치 이벤트 (모바일 터치 완벽 반응) ───
+                // ─── 터치 이벤트 (모바일 터치 및 수직 스크롤 완벽 지원) ───
                 card.addEventListener('touchstart', (e) => {
                     const target = e.target;
                     // 별표 버튼, 삼점 메뉴 버튼, 팝업 메뉴 등 클릭 요소 터치 시 드래그 감지 완전 우회!
@@ -2442,14 +3013,12 @@
                         return;
                     }
 
-                    // 카드의 드래그 영역/본문 터치 시에만 브라우저 스크롤/터치 캔슬 방지
-                    e.preventDefault();
-
-                    // 왼쪽 핸들(⋮⋮)을 터치하면 기다림 없이 0초 즉시 드래그 활성화!
+                    // 왼쪽 핸들(⋮⋮)을 터치하면 스크롤을 방지하고 0초 즉시 드래그 활성화!
                     if (handle && (handle.contains(pointTarget) || pointTarget === handle)) {
+                        if (e.cancelable) e.preventDefault();
                         activateDrag();
                     } else {
-                        // 본문 꾹 누르기 (350ms)
+                        // 일반 본문 터치 시에는 브라우저 기본 스크롤을 막지 않고, 350ms 꾹 누르기로 순서 변경 대기
                         longPressTimer = setTimeout(() => {
                             activateDrag();
                         }, 350);
@@ -2560,8 +3129,12 @@
             document.querySelectorAll('.card-menu-popover').forEach(el => el.classList.remove('show'));
             menuDropdown.classList.remove('show');
             eraserSizeMenu.classList.remove('show');
+            const cap = document.getElementById('canvas-add-popover');
+            if (cap) cap.classList.remove('show');
             const sm = document.getElementById('shape-select-menu');
             if (sm) sm.classList.remove('show');
+            const sortDd = document.getElementById('sort-dropdown');
+            if (sortDd) sortDd.classList.remove('open');
             if (statusPollInterval) {
                 clearInterval(statusPollInterval);
                 statusPollInterval = null;
@@ -2575,7 +3148,7 @@
 
             try {
                 const savedList = getLocalSavedDrawings();
-                const savedIds = savedList.map(item => item.server_task_id).filter(id => id !== undefined);
+                const savedIds = savedList.map(item => String(item.server_task_id)).filter(id => id !== undefined && id !== 'undefined');
 
                 const response = await fetch('/api/clear-task', {
                     method: 'POST',
@@ -2595,7 +3168,7 @@
                     if (localData) {
                         try {
                             const cached = JSON.parse(localData);
-                            const updatedCached = cached.filter(t => savedIds.includes(t.task_id) || t.status === 'drawing');
+                            const updatedCached = cached.filter(t => savedIds.includes(String(t.task_id)) || t.status === 'drawing');
                             localStorage.setItem('vico_cached_tasks', JSON.stringify(updatedCached));
                         } catch (e) {}
                     }
@@ -2678,13 +3251,24 @@
         if (workArea) {
             workArea.addEventListener('click', (e) => {
                 if (e.target.closest('#skip-button')) return;
+                if (e.target.closest('.toolbar-panel') || e.target.closest('#popup-tray')) return;
                 if (mode === 'idle' || mode === 'uploaded') {
                     fileInput.click();
                 }
             });
         }
 
-        // 그리기 로직 (마우스)
+        // PC 마우스 휠 확대/축소 (Wheel Zoom)
+        if (workArea) {
+            workArea.addEventListener('wheel', (e) => {
+                if (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating') return;
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.1 : -0.1;
+                changeZoom(delta, { x: e.clientX, y: e.clientY });
+            }, { passive: false });
+        }
+
+        // PC 마우스 드로잉 이벤트 처리
         inputCanvas.addEventListener('mousedown', startDrawing);
         inputCanvas.addEventListener('mousemove', (e) => {
             drawEraserCursor(e);
@@ -2696,16 +3280,26 @@
             stopDrawing(e);
         });
 
-        // 그리기 로직 (터치 - 모바일 지원)
+        // 모바일 2손가락 핀치 줌 (Pinch Zoom) 상태
+        let initialPinchDist = null;
+        let initialPinchScale = 1.0;
+
+        // 그리기 로직 (터치 - 모바일 지원 + 핀치 줌)
         inputCanvas.addEventListener('touchstart', handleTouchStart, { passive: false });
         inputCanvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-        inputCanvas.addEventListener('touchend', stopDrawing);
+        inputCanvas.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                initialPinchDist = null;
+            }
+            stopDrawing(e);
+        });
 
         function getTouchPos(touchEvent) {
             const rect = inputCanvas.getBoundingClientRect();
+            const touch = touchEvent.touches[0];
             return {
-                x: (touchEvent.touches[0].clientX - rect.left) * (inputCanvas.width / rect.width),
-                y: (touchEvent.touches[0].clientY - rect.top) * (inputCanvas.height / rect.height)
+                x: (touch.clientX - rect.left) * (inputCanvas.width / rect.width),
+                y: (touch.clientY - rect.top) * (inputCanvas.height / rect.height)
             };
         }
 
@@ -2769,15 +3363,50 @@
         function handleTouchStart(e) {
             if (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating') return;
             e.preventDefault();
-            const pos = getTouchPos(e);
-            startDrawingAt(pos.x, pos.y);
+
+            // 손가락 2개 터치 시 -> 핀치 줌 시작
+            if (e.touches.length === 2) {
+                isDrawing = false;
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                initialPinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                initialPinchScale = zoomScale;
+                return;
+            }
+
+            // 손가락 1개 터치 시 -> 드로잉 시작
+            if (e.touches.length === 1) {
+                const pos = getTouchPos(e);
+                startDrawingAt(pos.x, pos.y);
+            }
         }
 
         function handleTouchMove(e) {
-            if (!isDrawing || (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating')) return;
+            if (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating') return;
             e.preventDefault();
-            const pos = getTouchPos(e);
-            drawTo(pos.x, pos.y);
+
+            // 손가락 2개 터치 이동 시 -> 핀치 줌 실행
+            if (e.touches.length === 2 && initialPinchDist) {
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                const scaleFactor = currentDist / initialPinchDist;
+                const targetScale = initialPinchScale * scaleFactor;
+                const delta = targetScale - zoomScale;
+                
+                const centerPt = {
+                    x: (t1.clientX + t2.clientX) / 2,
+                    y: (t1.clientY + t2.clientY) / 2
+                };
+                changeZoom(delta, centerPt);
+                return;
+            }
+
+            // 손가락 1개 터치 이동 시 -> 드로잉 수행
+            if (isDrawing && e.touches.length === 1) {
+                const pos = getTouchPos(e);
+                drawTo(pos.x, pos.y);
+            }
         }
 
         function startDrawing(e) {
@@ -2810,6 +3439,12 @@
                         selectedShape = hit;
                         if (dragMode === 'delete_btn') {
                             deleteSelectedShape();
+                            return;
+                        }
+                        if (dragMode === 'text_mode_toggle') {
+                            saveHistoryState();
+                            selectedShape.textMode = (selectedShape.textMode === 'outline') ? 'single' : 'outline';
+                            drawAll();
                             return;
                         }
                         // 도형 각 코너의 시뮬레이션(월드) 좌표 계산 함수
@@ -2870,8 +3505,10 @@
 
                     inputCtx.beginPath();
                     inputCtx.moveTo(x, y);
-                    inputCtx.strokeStyle = "#4a90e2";
-                    inputCtx.lineWidth = 3.5;
+                    inputCtx.strokeStyle = "#000000";
+                    // 0.8mm 출력 펜 굵기를 화면 픽셀 단위로 환산
+                    const scale = Math.min(inputCanvas.width / simData.width, inputCanvas.height / simData.height);
+                    inputCtx.lineWidth = Math.max(1.5, scale * 0.8);
                     inputCtx.lineCap = 'round';
                     inputCtx.lineJoin = 'round';
                 } else if (activeTool === 'eraser') {
@@ -2956,22 +3593,43 @@
                         let newH = dragStartPos.shapeH;
                         let newAnchorLocal = { x: 0, y: 0 };
 
-                        if (resizeHandleIdx === 0) {       // Top-Left 잡음 (Anchor: Bottom-Right w, h)
-                            newW = Math.max(15, -V_local.x);
-                            newH = Math.max(15, -V_local.y);
-                            newAnchorLocal = { x: newW, y: newH };
-                        } else if (resizeHandleIdx === 1) { // Top-Right 잡음 (Anchor: Bottom-Left 0, h)
-                            newW = Math.max(15, V_local.x);
-                            newH = Math.max(15, -V_local.y);
-                            newAnchorLocal = { x: 0, y: newH };
-                        } else if (resizeHandleIdx === 2) { // Bottom-Right 잡음 (Anchor: Top-Left 0, 0)
-                            newW = Math.max(15, V_local.x);
-                            newH = Math.max(15, V_local.y);
-                            newAnchorLocal = { x: 0, y: 0 };
-                        } else if (resizeHandleIdx === 3) { // Bottom-Left 잡음 (Anchor: Top-Right w, 0)
-                            newW = Math.max(15, -V_local.x);
-                            newH = Math.max(15, V_local.y);
-                            newAnchorLocal = { x: newW, y: 0 };
+                        if (selectedShape.type === 'text') {
+                            const aspect = (dragStartPos.shapeW || 1) / (dragStartPos.shapeH || 1);
+                            if (resizeHandleIdx === 0) {       // Top-Left (Anchor: Bottom-Right w, h)
+                                newW = Math.max(20, -V_local.x);
+                                newH = newW / aspect;
+                                newAnchorLocal = { x: newW, y: newH };
+                            } else if (resizeHandleIdx === 1) { // Top-Right (Anchor: Bottom-Left 0, h)
+                                newW = Math.max(20, V_local.x);
+                                newH = newW / aspect;
+                                newAnchorLocal = { x: 0, y: newH };
+                            } else if (resizeHandleIdx === 2) { // Bottom-Right (Anchor: Top-Left 0, 0)
+                                newW = Math.max(20, V_local.x);
+                                newH = newW / aspect;
+                                newAnchorLocal = { x: 0, y: 0 };
+                            } else if (resizeHandleIdx === 3) { // Bottom-Left (Anchor: Top-Right w, 0)
+                                newW = Math.max(20, -V_local.x);
+                                newH = newW / aspect;
+                                newAnchorLocal = { x: newW, y: 0 };
+                            }
+                        } else {
+                            if (resizeHandleIdx === 0) {       // Top-Left 잡음 (Anchor: Bottom-Right w, h)
+                                newW = Math.max(15, -V_local.x);
+                                newH = Math.max(15, -V_local.y);
+                                newAnchorLocal = { x: newW, y: newH };
+                            } else if (resizeHandleIdx === 1) { // Top-Right 잡음 (Anchor: Bottom-Left 0, h)
+                                newW = Math.max(15, V_local.x);
+                                newH = Math.max(15, -V_local.y);
+                                newAnchorLocal = { x: 0, y: newH };
+                            } else if (resizeHandleIdx === 2) { // Bottom-Right 잡음 (Anchor: Top-Left 0, 0)
+                                newW = Math.max(15, V_local.x);
+                                newH = Math.max(15, V_local.y);
+                                newAnchorLocal = { x: 0, y: 0 };
+                            } else if (resizeHandleIdx === 3) { // Bottom-Left 잡음 (Anchor: Top-Right w, 0)
+                                newW = Math.max(15, -V_local.x);
+                                newH = Math.max(15, V_local.y);
+                                newAnchorLocal = { x: newW, y: 0 };
+                            }
                         }
 
                         const offset_local = {
@@ -3070,9 +3728,16 @@
                 for (let i = 0; i <= SEG; i++) {
                     rawPts.push({ x: s.x + s.w * i / SEG, y: s.y + s.h * i / SEG });
                 }
+            } else if (s.type === 'text') {
+                if (!s.text || s.text.trim() === '') return [];
+                if (s.textMode === 'outline') {
+                    return extractTextOutlineContours(s); // ㅁ 윤곽선 모드
+                } else {
+                    return extractTextSingleLineContours(s); // ㅡ 손글씨 1선 모드 (기본값)
+                }
             }
 
-            // 회전 각도가 적용된 최종 점 좌표 계산
+            // 일반 도형(line, rect, triangle, circle)은 단일 Contour 반환
             const angle = (s.rotation || 0) * Math.PI / 180;
             if (!angle) return rawPts;
 
@@ -3085,6 +3750,356 @@
                     x: cx + dx * Math.cos(angle) - dy * Math.sin(angle),
                     y: cy + dx * Math.sin(angle) + dy * Math.cos(angle)
                 };
+            });
+        }
+
+        // ㅁ 윤곽선 모드: 외곽선 및 내부 구멍 루프(Contour Loops) 추출
+        function extractTextOutlineContours(s) {
+            if (!s.text || s.text.trim() === '') return [];
+
+            const fontH = 100;
+            const scaleF = 2; // 고해상도 벡터 샘플링
+            const offCanvas = document.createElement('canvas');
+            const tmpCtx = offCanvas.getContext('2d');
+            tmpCtx.font = `700 ${fontH * scaleF}px "Pretendard", -apple-system, sans-serif`;
+            
+            const textStr = s.text.trim();
+            const metrics = tmpCtx.measureText(textStr);
+            const textPixelW = Math.max(160 * scaleF, Math.ceil(metrics.width) + 60 * scaleF);
+            const textPixelH = 160 * scaleF;
+
+            offCanvas.width = textPixelW;
+            offCanvas.height = textPixelH;
+
+            const offCtx = offCanvas.getContext('2d');
+            offCtx.font = `700 ${fontH * scaleF}px "Pretendard", -apple-system, sans-serif`;
+            offCtx.fillStyle = "#000000";
+            offCtx.textAlign = "center";
+            offCtx.textBaseline = "middle";
+            offCtx.fillText(textStr, textPixelW / 2, textPixelH / 2);
+
+            const imgData = offCtx.getImageData(0, 0, textPixelW, textPixelH);
+            const data = imgData.data;
+            const W = textPixelW;
+            const H = textPixelH;
+
+            const grid = new Uint8Array(W * H);
+            let minPX = W, maxPX = 0, minPY = H, maxPY = 0;
+            let hasPixel = false;
+
+            for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                    const alpha = data[(y * W + x) * 4 + 3];
+                    if (alpha > 90) {
+                        grid[y * W + x] = 1;
+                        if (x < minPX) minPX = x;
+                        if (x > maxPX) maxPX = x;
+                        if (y < minPY) minPY = y;
+                        if (y > maxPY) maxPY = y;
+                        hasPixel = true;
+                    }
+                }
+            }
+
+            if (!hasPixel || maxPX <= minPX || maxPY <= minPY) return [];
+
+            const visited = new Uint8Array(W * H);
+            const rawContours = [];
+
+            function isBnd(x, y) {
+                if (!grid[y * W + x]) return false;
+                if (x === 0 || x === W - 1 || y === 0 || y === H - 1) return true;
+                return (
+                    !grid[y * W + (x + 1)] ||
+                    !grid[y * W + (x - 1)] ||
+                    !grid[(y + 1) * W + x] ||
+                    !grid[(y - 1) * W + x]
+                );
+            }
+
+            const dx = [1, 1, 0, -1, -1, -1, 0, 1];
+            const dy = [0, 1, 1, 1, 0, -1, -1, -1];
+
+            for (let y = 1; y < H - 1; y += 2) {
+                for (let x = 1; x < W - 1; x += 2) {
+                    const idx = y * W + x;
+                    if (grid[idx] && !visited[idx] && isBnd(x, y)) {
+                        const loop = [];
+                        let cx = x, cy = y;
+                        let dir = 0;
+                        const startX = x, startY = y;
+                        let steps = 0;
+                        const maxSteps = W * H;
+
+                        while (steps < maxSteps) {
+                            visited[cy * W + cx] = 1;
+                            loop.push({ x: cx, y: cy });
+
+                            let found = false;
+                            const sDir = (dir + 5) % 8;
+                            for (let d = 0; d < 8; d++) {
+                                const cDir = (sDir + d) % 8;
+                                const nx = cx + dx[cDir];
+                                const ny = cy + dy[cDir];
+                                if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+                                    if (grid[ny * W + nx] && isBnd(nx, ny)) {
+                                        cx = nx;
+                                        cy = ny;
+                                        dir = cDir;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!found || (cx === startX && cy === startY)) break;
+                            steps++;
+                        }
+
+                        if (loop.length >= 4) {
+                            loop.push({ x: loop[0].x, y: loop[0].y });
+                            const smoothPts = [];
+                            let lastPt = null;
+                            for (const p of loop) {
+                                if (!lastPt || Math.hypot(p.x - lastPt.x, p.y - lastPt.y) >= 4) {
+                                    smoothPts.push(p);
+                                    lastPt = p;
+                                }
+                            }
+                            if (smoothPts.length >= 3) {
+                                rawContours.push(smoothPts);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 사용자가 조절한 텍스트 박스 크기(s.w, s.h)에 1:1로 가득 채워지도록 매핑 (완료 시 작아짐 현원 방지)
+            const rangeX = Math.max(maxPX - minPX, 1);
+            const rangeY = Math.max(maxPY - minPY, 1);
+            const angle = (s.rotation || 0) * Math.PI / 180;
+            const centerSimX = s.x + s.w / 2;
+            const centerSimY = s.y + s.h / 2;
+            const scaleX = s.w / rangeX;
+            const scaleY = s.h / rangeY;
+            const uniformScale = Math.min(scaleX, scaleY);
+
+            return rawContours.map(loop => {
+                return loop.map(pt => {
+                    const lx = (pt.x - (minPX + rangeX / 2)) * uniformScale;
+                    const ly = (pt.y - (minPY + rangeY / 2)) * uniformScale;
+
+                    if (!angle) {
+                        return { x: centerSimX + lx, y: centerSimY + ly };
+                    }
+                    return {
+                        x: centerSimX + lx * Math.cos(angle) - ly * Math.sin(angle),
+                        y: centerSimY + lx * Math.sin(angle) + ly * Math.cos(angle)
+                    };
+                });
+            });
+        }
+
+        // ㅡ 손글씨 모드: 윤곽선 없이 정밀한 단일 획 중심선(Zhang-Suen Thinning Skeleton) 추출
+        function extractTextSingleLineContours(s) {
+            if (!s.text || s.text.trim() === '') return [];
+
+            const fontH = 100;
+            const scaleF = 2;
+            const textStr = s.text.trim();
+
+            const offCanvas = document.createElement('canvas');
+            const tmpCtx = offCanvas.getContext('2d');
+            tmpCtx.font = `700 ${fontH * scaleF}px "Pretendard", -apple-system, sans-serif`;
+            
+            const metrics = tmpCtx.measureText(textStr);
+            const textPixelW = Math.max(160 * scaleF, Math.ceil(metrics.width) + 60 * scaleF);
+            const textPixelH = 160 * scaleF;
+
+            offCanvas.width = textPixelW;
+            offCanvas.height = textPixelH;
+
+            const offCtx = offCanvas.getContext('2d');
+            offCtx.font = `700 ${fontH * scaleF}px "Pretendard", -apple-system, sans-serif`;
+            offCtx.fillStyle = "#000000";
+            offCtx.textAlign = "center";
+            offCtx.textBaseline = "middle";
+            offCtx.fillText(textStr, textPixelW / 2, textPixelH / 2);
+
+            const imgData = offCtx.getImageData(0, 0, textPixelW, textPixelH);
+            const data = imgData.data;
+            const W = textPixelW;
+            const H = textPixelH;
+
+            // 1. 이진화 그리드 및 바운딩 박스 생성
+            const grid = new Uint8Array(W * H);
+            let minPX = W, maxPX = 0, minPY = H, maxPY = 0;
+            let hasPixel = false;
+
+            for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                    if (data[(y * W + x) * 4 + 3] > 80) {
+                        grid[y * W + x] = 1;
+                        if (x < minPX) minPX = x;
+                        if (x > maxPX) maxPX = x;
+                        if (y < minPY) minPY = y;
+                        if (y > maxPY) maxPY = y;
+                        hasPixel = true;
+                    }
+                }
+            }
+
+            if (!hasPixel || maxPX <= minPX || maxPY <= minPY) return [];
+
+            // 2. Zhang-Suen Thinning 알고리즘으로 1픽셀 두께의 중심선 스켈레톤 추출
+            const skel = new Uint8Array(grid);
+
+            function getNeighbors(x, y) {
+                const p2 = skel[(y - 1) * W + x];
+                const p3 = skel[(y - 1) * W + (x + 1)];
+                const p4 = skel[y * W + (x + 1)];
+                const p5 = skel[(y + 1) * W + (x + 1)];
+                const p6 = skel[(y + 1) * W + x];
+                const p7 = skel[(y + 1) * W + (x - 1)];
+                const p8 = skel[y * W + (x - 1)];
+                const p9 = skel[(y - 1) * W + (x - 1)];
+                return [p2, p3, p4, p5, p6, p7, p8, p9];
+            }
+
+            let change = true;
+            while (change) {
+                change = false;
+                // Step 1
+                const toDelete1 = [];
+                for (let y = 1; y < H - 1; y++) {
+                    for (let x = 1; x < W - 1; x++) {
+                        if (skel[y * W + x] === 1) {
+                            const [p2, p3, p4, p5, p6, p7, p8, p9] = getNeighbors(x, y);
+                            const B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+                            if (B >= 2 && B <= 6) {
+                                const n = [p2, p3, p4, p5, p6, p7, p8, p9, p2];
+                                let A = 0;
+                                for (let i = 0; i < 8; i++) {
+                                    if (n[i] === 0 && n[i + 1] === 1) A++;
+                                }
+                                if (A === 1) {
+                                    if ((p2 * p4 * p6 === 0) && (p4 * p6 * p8 === 0)) {
+                                        toDelete1.push(y * W + x);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                for (let i = 0; i < toDelete1.length; i++) {
+                    skel[toDelete1[i]] = 0;
+                    change = true;
+                }
+
+                // Step 2
+                const toDelete2 = [];
+                for (let y = 1; y < H - 1; y++) {
+                    for (let x = 1; x < W - 1; x++) {
+                        if (skel[y * W + x] === 1) {
+                            const [p2, p3, p4, p5, p6, p7, p8, p9] = getNeighbors(x, y);
+                            const B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+                            if (B >= 2 && B <= 6) {
+                                const n = [p2, p3, p4, p5, p6, p7, p8, p9, p2];
+                                let A = 0;
+                                for (let i = 0; i < 8; i++) {
+                                    if (n[i] === 0 && n[i + 1] === 1) A++;
+                                }
+                                if (A === 1) {
+                                    if ((p2 * p4 * p8 === 0) && (p2 * p6 * p8 === 0)) {
+                                        toDelete2.push(y * W + x);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                for (let i = 0; i < toDelete2.length; i++) {
+                    skel[toDelete2[i]] = 0;
+                    change = true;
+                }
+            }
+
+            // 3. 스켈레톤 픽셀 추적하여 strokePaths 생성
+            const visited = new Uint8Array(W * H);
+            const strokePaths = [];
+            const dx = [1, 1, 0, -1, -1, -1, 0, 1];
+            const dy = [0, 1, 1, 1, 0, -1, -1, -1];
+
+            for (let y = 1; y < H - 1; y++) {
+                for (let x = 1; x < W - 1; x++) {
+                    const idx = y * W + x;
+                    if (skel[idx] && !visited[idx]) {
+                        const path = [];
+                        let cx = x, cy = y;
+                        let steps = 0;
+                        const maxSteps = W * H;
+
+                        while (steps < maxSteps) {
+                            visited[cy * W + cx] = 1;
+                            path.push({ x: cx, y: cy });
+
+                            let found = false;
+                            for (let d = 0; d < 8; d++) {
+                                const nx = cx + dx[d];
+                                const ny = cy + dy[d];
+                                if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+                                    if (skel[ny * W + nx] && !visited[ny * W + nx]) {
+                                        cx = nx;
+                                        cy = ny;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!found) break;
+                            steps++;
+                        }
+
+                        if (path.length >= 2) {
+                            const smoothPts = [];
+                            let lastPt = null;
+                            for (const p of path) {
+                                if (!lastPt || Math.hypot(p.x - lastPt.x, p.y - lastPt.y) >= 3) {
+                                    smoothPts.push(p);
+                                    lastPt = p;
+                                }
+                            }
+                            if (smoothPts.length >= 2) {
+                                strokePaths.push(smoothPts);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 사용자가 조절한 텍스트 박스 크기(s.w, s.h)에 1:1로 가득 채워지도록 매핑 (완료 시 작아짐 현상 방지)
+            const rangeX = Math.max(maxPX - minPX, 1);
+            const rangeY = Math.max(maxPY - minPY, 1);
+            const angle = (s.rotation || 0) * Math.PI / 180;
+            const centerSimX = s.x + s.w / 2;
+            const centerSimY = s.y + s.h / 2;
+            const scaleX = s.w / rangeX;
+            const scaleY = s.h / rangeY;
+            const uniformScale = Math.min(scaleX, scaleY);
+
+            return strokePaths.map(path => {
+                return path.map(pt => {
+                    const lx = (pt.x - (minPX + rangeX / 2)) * uniformScale;
+                    const ly = (pt.y - (minPY + rangeY / 2)) * uniformScale;
+
+                    if (!angle) {
+                        return { x: centerSimX + lx, y: centerSimY + ly };
+                    }
+                    return {
+                        x: centerSimX + lx * Math.cos(angle) - ly * Math.sin(angle),
+                        y: centerSimY + lx * Math.sin(angle) + ly * Math.cos(angle)
+                    };
+                });
             });
         }
 
@@ -3240,24 +4255,31 @@
                 }
 
                 // 점으로 분산하여 지우개 내부의 영역만 부분 커팅
-                const pts = shapeToContour(s);
-                let currentChunk = [];
+                let ptsOrContours = shapeToContour(s);
+                // 단일 컨투어면 모양 통일을 위해 배열로 감싸줌
+                if (ptsOrContours.length > 0 && !Array.isArray(ptsOrContours[0])) {
+                    ptsOrContours = [ptsOrContours];
+                }
+
                 let shapePartErased = false;
 
-                for (const pt of pts) {
-                    const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
-                    if (d > eraseRadius) {
-                        currentChunk.push(pt);
-                    } else {
-                        shapePartErased = true;
-                        if (currentChunk.length > 1) {
-                            activeContours.push(currentChunk); // 살아남은 조각은 영속적인 펜으로 전송
+                for (const pts of ptsOrContours) {
+                    let currentChunk = [];
+                    for (const pt of pts) {
+                        const d = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+                        if (d > eraseRadius) {
+                            currentChunk.push(pt);
+                        } else {
+                            shapePartErased = true;
+                            if (currentChunk.length > 1) {
+                                activeContours.push(currentChunk); // 살아남은 조각은 영속적인 펜으로 전송
+                            }
+                            currentChunk = [];
                         }
-                        currentChunk = [];
                     }
-                }
-                if (currentChunk.length > 1) {
-                    activeContours.push(currentChunk);
+                    if (currentChunk.length > 1) {
+                        activeContours.push(currentChunk);
+                    }
                 }
 
                 if (shapePartErased) {
@@ -3333,32 +4355,40 @@
         });
 
         function setMode(newMode) {
+            // simulating으로 전환 시 기존 캔버스 상태(drawing 클래스 등) 보존
+            const prevMode = mode;
             mode = newMode;
-            if (workArea) workArea.className = 'canvas-container';
+            if (workArea && mode !== 'simulating') workArea.className = 'canvas-container';
 
-            // 모드 전환 시 도형 초기화
-            shapes = [];
-            selectedShape = null;
-            updateDeleteBar();
+            // 모드 전환 시 도형 초기화 (simulating 전환 시에는 유지)
+            if (mode !== 'simulating') {
+                shapes = [];
+                selectedShape = null;
+                updateDeleteBar();
+            }
 
             const btnEdit = document.getElementById('btn-edit-action');
             const btnComplete = document.getElementById('btn-complete-action');
             const toolsRowContainer = document.querySelector('.tools-row-container');
             const btnCanvasUpload = document.getElementById('btn-canvas-upload');
+            const zoomController = document.querySelector('.zoom-controller');
 
             if (mode === 'simulating') {
-                // 완료 후 (시뮬레이션 모드): 도구 행 전체 숨기기 + 수정 버튼 및 전송 버튼 노출
+                // 완료 후: 도구 행 숨기기 + 수정 버튼 및 전송 버튼 노출
+                // 캔버스(종이)는 그대로 유지
                 if (toolsRowContainer) toolsRowContainer.style.display = 'none';
                 if (btnCanvasUpload) btnCanvasUpload.style.display = 'none';
+                if (zoomController) zoomController.style.display = 'none';
                 if (btnEdit) btnEdit.style.display = 'block';
                 if (btnComplete) {
                     btnComplete.style.display = 'block';
                     btnComplete.textContent = '전송';
                 }
             } else {
-                // 그리기/편집 중: 도구 행 노출 + 수정 버튼 완전히 숨기기 + 완료 버튼만 노출
+                // 그리기/편집 중: 도구 행 노출 + 수정 버튼 숨기기 + 완료 버튼 노출
                 if (toolsRowContainer) toolsRowContainer.style.display = 'flex';
                 if (btnCanvasUpload) btnCanvasUpload.style.display = 'flex';
+                if (zoomController) zoomController.style.display = 'flex';
                 if (btnEdit) btnEdit.style.display = 'none';
                 if (btnComplete) {
                     btnComplete.style.display = 'block';
@@ -3383,16 +4413,21 @@
                 lastInputMode = 'drawing';
                 setEditTool('pen');
 
-                // 직접 그리기용 빈 벡터 데이터 초기 데이터 설정
-                simData = {
-                    width: simCanvas.width || 800,
-                    height: simCanvas.height || 600,
-                    contours: []
-                };
-                activeContours = simData.contours;
-
-                inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
-                simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+                // 이미 진행 중인 드로잉 데이터가 없다면 새로 생성 (기존 작업 유지)
+                if (!simData || !simData.contours) {
+                    const isLandscapeNow = (overridePaperOrientation === 'landscape');
+                    simData = {
+                        width: isLandscapeNow ? 800 : 600,
+                        height: isLandscapeNow ? 600 : 800,
+                        contours: []
+                    };
+                    activeContours = simData.contours;
+                    inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+                    simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+                } else {
+                    activeContours = simData.contours;
+                    drawAll();
+                }
             }
             else if (mode === 'editing') {
                 if (workArea) {
@@ -3401,9 +4436,16 @@
                 }
                 setEditTool('pen');
             }
+            else if (mode === 'simulating') {
+                // 이전 drawing/editing 클래스 복원 (캔버스 유지)
+                if (workArea && prevMode === 'drawing') workArea.classList.add('drawing');
+                else if (workArea && prevMode === 'editing') workArea.classList.add('editing');
+                // 그림 그대로 재렌더
+                setTimeout(drawAll, 50);
+            }
 
             // UI 요소 가시성 변경 후 캔버스 해상도 및 비율 재동기화
-            setTimeout(resizeCanvas, 0);
+            if (mode !== 'simulating') setTimeout(resizeCanvas, 0);
         }
 
         function handleCompleteBtn() {
@@ -3444,7 +4486,8 @@
             if (e) e.stopPropagation();
         }
 
-        function setEditTool(tool) {
+        function setEditTool(tool, event) {
+            if (event) event.stopPropagation();
             activeTool = tool;
             if (toolPen) toolPen.classList.toggle('active', tool === 'pen');
             if (toolEraser) toolEraser.classList.toggle('active', tool === 'eraser');
@@ -3452,10 +4495,13 @@
             const toolShape = document.getElementById('tool-shape');
             if (toolShape) toolShape.classList.toggle('active', tool === 'shape');
 
-            // 팝업 트레이 영역 높이 확장 제어 (지우개/도형 활성 시 60px로 확장되어 완료 버튼이 하단으로 밀림)
+            const toolAdd = document.getElementById('tool-add');
+            if (toolAdd) toolAdd.classList.toggle('active', tool === 'add');
+
+            // 팝업 트레이 영역 높이 확장 제어 (지우개/도형/플러스 활성 시 60px로 확장)
             const popupTray = document.getElementById('popup-tray');
             if (popupTray) {
-                const hasPopup = (tool === 'eraser' || tool === 'shape');
+                const hasPopup = (tool === 'eraser' || tool === 'shape' || tool === 'add');
                 popupTray.classList.toggle('has-popup', hasPopup);
             }
 
@@ -3481,7 +4527,14 @@
                 sPanel.style.display = (tool === 'shape') ? 'flex' : 'none';
             }
 
-            if (tool !== 'shape') {
+            // 플러스 추가 팝업 제어
+            const aPanel = document.getElementById('add-picker-panel');
+            if (aPanel) {
+                aPanel.classList.toggle('show', tool === 'add');
+                aPanel.style.display = (tool === 'add') ? 'flex' : 'none';
+            }
+
+            if (tool !== 'shape' && tool !== 'add') {
                 selectedShape = null;
                 updateDeleteBar();
                 drawAll();
@@ -3507,8 +4560,12 @@
             const offsetX = (ctx.canvas.width - simData.width * scale) / 2;
             const offsetY = (ctx.canvas.height - simData.height * scale) / 2;
 
-            ctx.strokeStyle = "#4a90e2";
-            ctx.lineWidth = 3.5;
+            // 0.8mm 실제 출력 펜 굵기를 논리 단위/화면 scale에 맞춰 실감나게 계산
+            const strokeMm = 0.8;
+            const strokePx = Math.max(1.5, scale * strokeMm);
+
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = strokePx;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
@@ -3544,9 +4601,10 @@
                 ctx.rotate(angle);
                 ctx.translate(-cx, -cy);
 
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = "#4a90e2";
-                ctx.fillStyle = "rgba(74, 144, 226, 0.05)";
+                const strokeMm = 0.8;
+                ctx.lineWidth = Math.max(1.5, scale * strokeMm);
+                ctx.strokeStyle = "#000000";
+                ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
 
                 ctx.beginPath();
                 if (s.type === 'rect') {
@@ -3570,6 +4628,22 @@
                     ctx.moveTo(sx, sy);
                     ctx.lineTo(sx + sw, sy + sh);
                     ctx.stroke();
+                } else if (s.type === 'text') {
+                    const fontSize = Math.max(20, Math.abs(sh * 0.7));
+                    ctx.font = `700 ${fontSize}px "Pretendard", -apple-system, sans-serif`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    
+                    if (s.textMode === 'outline') {
+                        // 윤곽선 모드: 글자의 외곽 테두리를 따라 그리는 모습 (이중선 strokeText)
+                        ctx.strokeStyle = "#000000";
+                        ctx.lineWidth = Math.max(1.5, Math.min(3, fontSize * 0.06));
+                        ctx.strokeText(s.text || '', cx, cy);
+                    } else {
+                        // ㅡ 손글씨 1선 모드: 외곽선 없이 사람이 쓰는 듯한 꽉 찬 단일 글씨 모습 (fillText)
+                        ctx.fillStyle = "#000000";
+                        ctx.fillText(s.text || '', cx, cy);
+                    }
                 }
 
                 // 선택 영역 활성화 점선 가이드 상자 및 조절자
@@ -3633,6 +4707,37 @@
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
                     ctx.fillText("✕", delX, delY);
+
+                    // 3. 텍스트 도형 전용 ㅡ / ㅁ 출력 모드 전환 버튼 (위치: X버튼 좌측)
+                    if (s.type === 'text') {
+                        const modeBtnX = delX - 34;
+                        const modeBtnY = topY;
+                        const isSingleLine = (s.textMode !== 'outline'); // 기본값: ㅡ 단일 획 손글씨 모드
+
+                        const btnW = 30; // ㅁ 모양이 가로로 충분히 길게 보이도록 너비 확대
+                        const btnH = 18;
+                        const btnX = modeBtnX - btnW / 2;
+                        const btnY = modeBtnY - btnH / 2;
+
+                        ctx.beginPath();
+                        if (ctx.roundRect) {
+                            ctx.roundRect(btnX, btnY, btnW, btnH, 5);
+                        } else {
+                            ctx.rect(btnX, btnY, btnW, btnH);
+                        }
+                        ctx.fillStyle = "#ffffff";
+                        ctx.fill();
+                        ctx.strokeStyle = "#64748b"; // 파란색 테두리 대신 일관된 회색 테두리
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+
+                        ctx.font = "bold 13px sans-serif";
+                        ctx.fillStyle = "#334155"; // 일관된 회색 아이콘 텍스트
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        const iconStr = isSingleLine ? "ㅡ" : "ㅁ";
+                        ctx.fillText(iconStr, modeBtnX, modeBtnY);
+                    }
                 }
 
                 ctx.restore();
@@ -3673,6 +4778,15 @@
                 if (Math.hypot(clickX - delPt.x, clickY - delPt.y) <= 24) {
                     dragMode = 'delete_btn';
                     return selectedShape;
+                }
+
+                // 1-1. 텍스트 모드(ㅡ 손글씨 vs ㅁ 윤곽선) 전환 버튼 검사 (X버튼 좌측 - 터치 마진 22px)
+                if (s.type === 'text') {
+                    const modePt = getRotatedPt(delX - 32, topY);
+                    if (Math.hypot(clickX - modePt.x, clickY - modePt.y) <= 22) {
+                        dragMode = 'text_mode_toggle';
+                        return selectedShape;
+                    }
                 }
 
                 // 2. 상단 중앙 회전 핸들 검사 (터치 마진 24px)
@@ -3763,6 +4877,67 @@
             drawAll();
         }
 
+        function toggleCanvasAddMenu(event) {
+            if (event) event.stopPropagation();
+            const popover = document.getElementById('canvas-add-popover');
+            if (popover) {
+                popover.classList.toggle('show');
+            }
+        }
+
+        function triggerFileInput(event) {
+            if (event) event.stopPropagation();
+            const popover = document.getElementById('canvas-add-popover');
+            if (popover) popover.classList.remove('show');
+            fileInput.click();
+        }
+
+        async function promptAddText(event) {
+            if (event) event.stopPropagation();
+            const popover = document.getElementById('canvas-add-popover');
+            if (popover) popover.classList.remove('show');
+
+            const text = await showPromptModal('텍스트 입력', 'Vico AI');
+            if (!text || text.trim() === '') return;
+
+            if (!simData) {
+                simData = { width: 800, height: 600, contours: [] };
+            }
+
+            // 임시 Canvas로 텍스트 폭 측정하여 w, h 선명한 기본크기 구하기
+            const tmpCanvas = document.createElement('canvas');
+            const tmpCtx = tmpCanvas.getContext('2d');
+            tmpCtx.font = "bold 44px sans-serif";
+            const metrics = tmpCtx.measureText(text.trim());
+            const textW = Math.max(140, Math.ceil(metrics.width) + 40);
+            const textH = 75;
+
+            const cx = simData.width / 2;
+            const cy = simData.height / 2;
+
+            saveHistoryState(); // 텍스트 추가 전 히스토리 기록
+
+            shapeIdCounter++;
+            const newShape = {
+                id: shapeIdCounter,
+                type: 'text',
+                text: text.trim(),
+                textMode: 'single', // 기본값: ㅡ 손글씨 1선 모드
+                x: cx - textW / 2,
+                y: cy - textH / 2,
+                w: textW,
+                h: textH,
+                rotation: 0
+            };
+
+            shapes.push(newShape);
+            selectedShape = newShape;
+            setEditTool('shape'); // 텍스트 생성 후 자유로운 크기/위치 조작 모드로 자동 전환
+
+            updateDeleteBar();
+            drawAll();
+        }
+
         function deleteSelectedShape() {
             if (selectedShape) {
                 saveHistoryState(); // 도형 삭제 전 히스토리 저장
@@ -3779,9 +4954,17 @@
             // shapeToContour()와 동일한 밀집 샘플링으로 변환 (지우개 부분 지우기 호환)
             const output = [];
             shapes.forEach(s => {
-                const pts = shapeToContour(s); // 80분할 밀집 샘플링 재사용
-                if (pts.length > 1) {
-                    output.push(pts);
+                const result = shapeToContour(s); // 80분할 밀집 혹은 다중 컨투어 반환
+                if (result.length > 0) {
+                    if (Array.isArray(result[0])) {
+                        // 다중 컨투어 (텍스트 등)인 경우
+                        result.forEach(pts => {
+                            if (pts.length > 1) output.push(pts);
+                        });
+                    } else {
+                        // 단일 컨투어 (기본 도형)인 경우
+                        if (result.length > 1) output.push(result);
+                    }
                 }
             });
             return output;
@@ -3839,9 +5022,7 @@
 
                 if (result.status === 'success') {
                     simData.gcode = result.gcode;
-                    inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
-                    setMode('simulating');
-                    skipSimulation(); // 결과 즉시 표시
+                    setMode('simulating'); // 버튼만 수정/전송으로 전환, 캔버스는 유지
                 } else {
                     throw new Error(result.message);
                 }
@@ -3852,7 +5033,16 @@
         }
 
         async function uploadToQueue() {
-            if (!simData || !simData.contours) {
+            // 아직 병합되지 않은 도형/글씨(Text)가 남아있을 경우 contours 벡터로 통합 병합
+            if (shapes && shapes.length > 0) {
+                const shapesContours = convertShapesToContours();
+                if (!simData) simData = { width: 800, height: 600, contours: [] };
+                simData.contours = (simData.contours || []).concat(shapesContours);
+                shapes = [];
+                selectedShape = null;
+            }
+
+            if (!simData || !simData.contours || simData.contours.length === 0) {
                 await showAlert("전송할 데이터가 없습니다.");
                 return;
             }
@@ -3863,39 +5053,9 @@
             progressBar.style.width = '30%';
 
             try {
-                // 종이 가이드 프레임 영역 내부 좌표 구하기
-                const crop = getPaperCropRect();
-                const scale = Math.min(simCanvas.width / simData.width, simCanvas.height / simData.height);
-                const offsetX = (simCanvas.width - simData.width * scale) / 2;
-                const offsetY = (simCanvas.height - simData.height * scale) / 2;
+                const finalContours = simData.contours;
 
-                // 종이 영역 내부 선만 클리핑(필터링)하여 전송용 contours 생성
-                const croppedContours = [];
-                simData.contours.forEach(contour => {
-                    let currentContour = [];
-                    for (let i = 0; i < contour.length; i++) {
-                        const pt = contour[i];
-                        const px = pt.x * scale + offsetX;
-                        const py = pt.y * scale + offsetY;
-
-                        const isInside = crop && (px >= crop.x && px <= crop.x + crop.w && py >= crop.y && py <= crop.y + crop.h);
-                        if (isInside) {
-                            currentContour.push(pt);
-                        } else {
-                            if (currentContour.length > 1) {
-                                croppedContours.push(currentContour);
-                            }
-                            currentContour = [];
-                        }
-                    }
-                    if (currentContour.length > 1) {
-                        croppedContours.push(currentContour);
-                    }
-                });
-
-                const finalContours = (croppedContours.length > 0) ? croppedContours : simData.contours;
-
-                // 클리핑 처리된 벡터 데이터로 최신 G-Code 생성
+                // 최신 G-Code 생성
                 const updateRes = await fetch('/api/update-gcode', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -3922,7 +5082,9 @@
                     },
                     body: JSON.stringify({
                         gcode: simData.gcode,
-                        contours: finalContours
+                        contours: finalContours,
+                        width: simData.width,
+                        height: simData.height
                     })
                 });
 
@@ -3985,9 +5147,7 @@
 
                 if (result.status === 'success') {
                     simData.gcode = result.gcode;
-                    inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
-                    setMode('simulating');
-                    skipSimulation(); // 결과 즉시 표시
+                    setMode('simulating'); // 버튼만 수정/전송으로 전환, 캔버스는 유지
                 } else {
                     throw new Error(result.message);
                 }

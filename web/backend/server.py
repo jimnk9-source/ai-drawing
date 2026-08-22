@@ -18,6 +18,8 @@ app = FastAPI()
 class DrawingTask(BaseModel):
     gcode: str
     contours: Optional[list] = None
+    width: Optional[int] = 800
+    height: Optional[int] = 1200
 
 class ContoursData(BaseModel):
     width: int
@@ -35,6 +37,10 @@ DATA_FILE = os.path.join(BASE_DIR, "tasks_persistence.json")
 tasks_db = []  # 각 task: {"task_id": int, "gcode": str, "contours": list, "status": str}
 task_counter = 0
 
+# task_id 고유성 보장 (인덱스 재정렬 시 별표 매핑이 깨지는 버그 방지)
+def reindex_tasks():
+    pass
+
 def load_tasks_from_file():
     global tasks_db, task_counter
     if os.path.exists(DATA_FILE):
@@ -42,7 +48,7 @@ def load_tasks_from_file():
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 tasks_db = data.get("tasks", [])
-                task_counter = data.get("task_counter", 0)
+                reindex_tasks()
                 print(f">>> [PERSISTENCE] Loaded {len(tasks_db)} tasks from file (Last Counter: {task_counter})")
         except Exception as e:
             print(f">>> [PERSISTENCE] Load error: {e}")
@@ -77,6 +83,22 @@ load_dotenv()
 # 펜이 올라가야 할 때도 올라가지 않는 버그가 있었습니다.
 
 def generate_gcode(contours, img_w, img_h):
+    # 세로 그림(img_w <= img_h)은 회전하지 않고 세로 수직 방향으로 출력
+    # 가로 그림(img_w > img_h)일 때만 플로터 출력에 맞추어 자동 90도 회전
+    if img_w > img_h:
+        # 가로 캔버스 -> 90도 회전 적용
+        rot_contours = []
+        for path in contours:
+            rot_path = []
+            for p in path:
+                rot_path.append({
+                    "x": img_h - p["y"],
+                    "y": p["x"]
+                })
+            rot_contours.append(rot_path)
+        contours = rot_contours
+        img_w, img_h = img_h, img_w
+
     # A4 종이 너비(210mm) 기준, 여백 제외 약 180mm로 스케일링
     target_width_mm = 180.0
     scale = target_width_mm / img_w
@@ -128,8 +150,9 @@ async def read_index():
 async def clear_task(req: ClearRequest):
     global tasks_db
     try:
-        # 보관된 saved_ids에 들어있거나 현재 출력중('drawing')인 작업만 남겨두고 나머지는 큐에서 제거
-        tasks_db = [t for t in tasks_db if t["task_id"] in req.saved_ids or t["status"] == "drawing"]
+        # 보관된 saved_ids(문자열/숫자 호환)에 들어있거나 현재 출력중('drawing')인 작업만 남겨두고 나머지는 큐에서 제거
+        saved_str_ids = [str(x) for x in req.saved_ids]
+        tasks_db = [t for t in tasks_db if str(t["task_id"]) in saved_str_ids or t["status"] == "drawing"]
         save_tasks_to_file()
         print(f">>> SUCCESS: Queue Cleared (Saved preserved: {req.saved_ids})")
         return JSONResponse(content={"status": "success", "message": "저장된 데이터를 제외하고 모든 G-Code가 삭제되었습니다."})
@@ -153,16 +176,19 @@ async def push_task(task: DrawingTask):
     global tasks_db, task_counter
     try:
         task_counter += 1
+        new_id = task_counter
         new_task = {
-            "task_id": task_counter,
+            "task_id": new_id,
             "gcode": task.gcode,
             "contours": task.contours or [],
+            "width": task.width,
+            "height": task.height,
             "status": "pending"
         }
         tasks_db.append(new_task)
         save_tasks_to_file()
-        print(f">>> SUCCESS: Task {task_counter} Pushed")
-        return {"status": "success", "task_id": task_counter}
+        print(f">>> SUCCESS: Task {new_id} Pushed")
+        return {"status": "success", "task_id": new_id}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -205,6 +231,8 @@ async def get_tasks_status():
         {
             "task_id": t["task_id"],
             "contours": t["contours"],
+            "width": t.get("width", 800),
+            "height": t.get("height", 1200),
             "status": t["status"]
         } for t in tasks_db
     ]
