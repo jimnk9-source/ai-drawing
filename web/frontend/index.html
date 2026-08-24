@@ -1817,6 +1817,9 @@
             const navWs = document.getElementById('nav-workspace');
             if (navWs) navWs.classList.add('active');
 
+            const btnFS = document.querySelector('.btn-fullscreen');
+            if (btnFS) btnFS.style.display = 'flex';
+
             // mode를 idle로 강제하여 setMode('drawing')이 새 시작 로직을 타도록 설정
             mode = 'idle';
             simData = null;
@@ -2383,7 +2386,9 @@
                     },
                     body: JSON.stringify({
                         gcode: gcodeResult.gcode,
-                        contours: item.contours
+                        contours: item.contours,
+                        width: item.width || 600,
+                        height: item.height || 800
                     })
                 });
                 const result = await response.json();
@@ -2618,8 +2623,9 @@
             setTimeout(() => {
                 const canvas = document.getElementById('preview-large-canvas');
                 if (canvas) {
-                    const w = task.width || 800;
-                    const h = task.height || 1200;
+                    let w = task.width || 600;
+                    let h = task.height || 800;
+                    if (h === 1200) h = 800; // 레거시 1200 높이 보정
                     
                     // 모달 안 캔버스 크기 지정 (최대 380x360 뷰포트 맞춤)
                     const containerBox = canvas.parentElement;
@@ -3110,10 +3116,21 @@
                 return;
             }
 
+            let taskW = task.width || 600;
+            let taskH = task.height || 800;
+            if (taskH === 1200) taskH = 800;
+
+            // 종이 방향도 태스크 비율에 맞춰 동기화
+            overridePaperOrientation = (taskW > taskH) ? 'landscape' : 'portrait';
+            const orientIcon = document.getElementById('paper-orient-icon');
+            if (orientIcon) {
+                orientIcon.className = overridePaperOrientation === 'landscape' ? 'orient-icon landscape' : 'orient-icon portrait';
+            }
+
             // simData 세팅 및 contours 복원
             simData = {
-                width: 800,
-                height: 600,
+                width: taskW,
+                height: taskH,
                 contours: JSON.parse(JSON.stringify(task.contours))
             };
 
@@ -4901,7 +4918,12 @@
             if (!text || text.trim() === '') return;
 
             if (!simData) {
-                simData = { width: 800, height: 600, contours: [] };
+                const isLandscapeNow = (overridePaperOrientation === 'landscape');
+                simData = {
+                    width: isLandscapeNow ? 800 : 600,
+                    height: isLandscapeNow ? 600 : 800,
+                    contours: []
+                };
             }
 
             // 임시 Canvas로 텍스트 폭 측정하여 w, h 선명한 기본크기 구하기
@@ -5036,7 +5058,14 @@
             // 아직 병합되지 않은 도형/글씨(Text)가 남아있을 경우 contours 벡터로 통합 병합
             if (shapes && shapes.length > 0) {
                 const shapesContours = convertShapesToContours();
-                if (!simData) simData = { width: 800, height: 600, contours: [] };
+                if (!simData) {
+                    const isLandscapeNow = (overridePaperOrientation === 'landscape');
+                    simData = {
+                        width: isLandscapeNow ? 800 : 600,
+                        height: isLandscapeNow ? 600 : 800,
+                        contours: []
+                    };
+                }
                 simData.contours = (simData.contours || []).concat(shapesContours);
                 shapes = [];
                 selectedShape = null;

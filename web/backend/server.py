@@ -18,8 +18,8 @@ app = FastAPI()
 class DrawingTask(BaseModel):
     gcode: str
     contours: Optional[list] = None
-    width: Optional[int] = 800
-    height: Optional[int] = 1200
+    width: Optional[int] = 600
+    height: Optional[int] = 800
 
 class ContoursData(BaseModel):
     width: int
@@ -48,6 +48,15 @@ def load_tasks_from_file():
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 tasks_db = data.get("tasks", [])
+                task_counter = data.get("task_counter", 0)
+                # 기존 1200으로 잘못 저장되어 있던 height 값 보정
+                for t in tasks_db:
+                    if t.get("height") == 1200:
+                        t["height"] = 800
+                    if t.get("width") is None:
+                        t["width"] = 600
+                    if t.get("height") is None:
+                        t["height"] = 800
                 reindex_tasks()
                 print(f">>> [PERSISTENCE] Loaded {len(tasks_db)} tasks from file (Last Counter: {task_counter})")
         except Exception as e:
@@ -231,8 +240,8 @@ async def get_tasks_status():
         {
             "task_id": t["task_id"],
             "contours": t["contours"],
-            "width": t.get("width", 800),
-            "height": t.get("height", 1200),
+            "width": t.get("width", 600),
+            "height": t.get("height", 800),
             "status": t["status"]
         } for t in tasks_db
     ]
