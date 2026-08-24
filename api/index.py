@@ -7,6 +7,7 @@ import numpy as np
 import base64
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 app = FastAPI()
 
@@ -128,7 +129,8 @@ async def push_task(task: DrawingTask):
             "contours": task.contours or [],
             "width": task.width,
             "height": task.height,
-            "status": "pending"
+            "status": "pending",
+            "created_at": datetime.now().strftime("%Y.%m.%d")
         }
         tasks_db.append(new_task)
         return {"status": "success", "task_id": task_counter}
@@ -170,7 +172,8 @@ async def get_tasks_status():
             "contours": t["contours"],
             "width": t.get("width", 600),
             "height": t.get("height", 800),
-            "status": t["status"]
+            "status": t["status"],
+            "created_at": t.get("created_at", "")
         } for t in tasks_db
     ]
 

@@ -9,6 +9,7 @@ import base64
 import uvicorn
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 import json
 
@@ -192,7 +193,8 @@ async def push_task(task: DrawingTask):
             "contours": task.contours or [],
             "width": task.width,
             "height": task.height,
-            "status": "pending"
+            "status": "pending",
+            "created_at": datetime.now().strftime("%Y.%m.%d")
         }
         tasks_db.append(new_task)
         save_tasks_to_file()
@@ -242,7 +244,8 @@ async def get_tasks_status():
             "contours": t["contours"],
             "width": t.get("width", 600),
             "height": t.get("height", 800),
-            "status": t["status"]
+            "status": t["status"],
+            "created_at": t.get("created_at", "")
         } for t in tasks_db
     ]
 

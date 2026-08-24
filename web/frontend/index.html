@@ -1883,6 +1883,80 @@
             updateZoomTransform();
         }
 
+        // 선분 클리핑 (Liang-Barsky 알고리즘)
+        function clipLineSegment(p1, p2, maxW, maxH) {
+            let t0 = 0, t1 = 1;
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+
+            const p = [-dx, dx, -dy, dy];
+            const q = [p1.x, maxW - p1.x, p1.y, maxH - p1.y];
+
+            for (let i = 0; i < 4; i++) {
+                if (p[i] === 0) {
+                    if (q[i] < 0) return null;
+                } else {
+                    const r = q[i] / p[i];
+                    if (p[i] < 0) {
+                        if (r > t1) return null;
+                        if (r > t0) t0 = r;
+                    } else {
+                        if (r < t0) return null;
+                        if (r < t1) t1 = r;
+                    }
+                }
+            }
+
+            return [
+                { x: p1.x + t0 * dx, y: p1.y + t0 * dy },
+                { x: p1.x + t1 * dx, y: p1.y + t1 * dy }
+            ];
+        }
+
+        // 전체 컨투어 배열을 종이 영역(maxW x maxH) 범위 내로 정밀 클리핑
+        function clipContoursToBounds(contours, maxW, maxH) {
+            if (!contours || contours.length === 0) return [];
+            const clippedContours = [];
+
+            contours.forEach(contour => {
+                if (!contour || contour.length < 2) return;
+
+                let currentPath = [];
+                for (let i = 0; i < contour.length - 1; i++) {
+                    const p1 = contour[i];
+                    const p2 = contour[i + 1];
+
+                    const clipped = clipLineSegment(p1, p2, maxW, maxH);
+                    if (clipped) {
+                        const cp1 = clipped[0];
+                        const cp2 = clipped[1];
+                        if (currentPath.length === 0) {
+                            currentPath.push(cp1);
+                        } else {
+                            const lastPt = currentPath[currentPath.length - 1];
+                            if (Math.abs(lastPt.x - cp1.x) > 0.1 || Math.abs(lastPt.y - cp1.y) > 0.1) {
+                                if (currentPath.length > 1) {
+                                    clippedContours.push(currentPath);
+                                }
+                                currentPath = [cp1];
+                            }
+                        }
+                        currentPath.push(cp2);
+                    } else {
+                        if (currentPath.length > 1) {
+                            clippedContours.push(currentPath);
+                        }
+                        currentPath = [];
+                    }
+                }
+                if (currentPath.length > 1) {
+                    clippedContours.push(currentPath);
+                }
+            });
+
+            return clippedContours;
+        }
+
         // 종이 수동 방향 상태 변수 ('portrait': 세로 기본, 'landscape': 가로)
         let overridePaperOrientation = 'portrait';
 
@@ -1902,16 +1976,24 @@
                 orientIcon.className = overridePaperOrientation === 'landscape' ? 'orient-icon landscape' : 'orient-icon portrait';
             }
 
-            // 시뮬레이션 데이터 가로/세로 비율 동기화
+            // 시뮬레이션 데이터 가로/세로 비율 동기화 및 가시 영역 바운더리 클리핑
             if (simData) {
                 const isLandscape = (overridePaperOrientation === 'landscape');
                 const targetW = isLandscape ? 800 : 600;
                 const targetH = isLandscape ? 600 : 800;
                 simData.width = targetW;
                 simData.height = targetH;
+
+                if (simData.contours && simData.contours.length > 0) {
+                    simData.contours = clipContoursToBounds(simData.contours, targetW, targetH);
+                }
+                if (activeContours && activeContours.length > 0) {
+                    activeContours = clipContoursToBounds(activeContours, targetW, targetH);
+                }
             }
 
             resizeCanvas();
+            drawAll();
         }
 
         function resizeCanvas() {
@@ -2890,7 +2972,7 @@
                                     <span class="task-num" id="task-name-${task.task_id}">${displayName}</span>
                                     ${badgeHtml}
                                 </div>
-                                <span class="task-date">생성일 2026.08.13</span>
+                                <span class="task-date">생성일 ${task.created_at || new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit'}).replace(/\. /g,'.').replace('.','.').trimEnd('.')}</span>
                             </div>
                         </div>
                         <div class="history-actions">
@@ -4638,6 +4720,11 @@
             const offsetX = (ctx.canvas.width - simData.width * scale) / 2;
             const offsetY = (ctx.canvas.height - simData.height * scale) / 2;
 
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(offsetX, offsetY, simData.width * scale, simData.height * scale);
+            ctx.clip();
+
             // 0.8mm 실제 출력 펜 굵기를 논리 단위/화면 scale에 맞춰 실감나게 계산
             const strokeMm = 0.8;
             const strokePx = Math.max(1.5, scale * strokeMm);
@@ -4656,6 +4743,8 @@
                 }
                 ctx.stroke();
             });
+
+            ctx.restore();
         }
 
         function renderShapes(shapesList, ctx) {
@@ -5081,8 +5170,9 @@
             shapes = [];
             selectedShape = null;
 
-            // 길이가 2 미만인 점들은 무시
-            simData.contours = activeContours.filter(c => c.length > 1);
+            // 종이 바운더리(simData.width x simData.height) 외부 컨투어 클리핑
+            activeContours = clipContoursToBounds(activeContours, simData.width, simData.height);
+            simData.contours = activeContours.filter(c => c && c.length > 1);
 
             try {
                 // 이미지를 다시 보내지 않고, 수정된 벡터 데이터를 통해 G-Code만 업데이트
@@ -5130,6 +5220,10 @@
                 simData.contours = (simData.contours || []).concat(shapesContours);
                 shapes = [];
                 selectedShape = null;
+            }
+
+            if (simData && simData.contours && simData.contours.length > 0) {
+                simData.contours = clipContoursToBounds(simData.contours, simData.width, simData.height);
             }
 
             if (!simData || !simData.contours || simData.contours.length === 0) {
@@ -5213,8 +5307,9 @@
             shapes = [];
             selectedShape = null;
 
-            // 길이가 2 미만인 점들은 무시
-            simData.contours = activeContours.filter(c => c.length > 1);
+            // 종이 바운더리(simData.width x simData.height) 외부 컨투어 클리핑
+            activeContours = clipContoursToBounds(activeContours, simData.width, simData.height);
+            simData.contours = activeContours.filter(c => c && c.length > 1);
 
             try {
                 // 직접 수집된 정교한 벡터 직선 데이터로 G-Code 생성 요청
