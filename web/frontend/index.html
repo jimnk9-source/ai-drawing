@@ -3331,17 +3331,25 @@
             stopDrawing(e);
         });
 
-        // 모바일 2손가락 핀치 줌 (Pinch Zoom) 상태
+        // 모바일 2손가락 핀치 줌 (Pinch Zoom) 및 상하좌우 팬 (Pan) 상태
         let initialPinchDist = null;
         let initialPinchScale = 1.0;
+        let initialPinchCenter = null;
+        let initialZoomPanPos = { x: 0, y: 0 };
 
-        // 그리기 로직 (터치 - 모바일 지원 + 핀치 줌)
+        // 그리기 로직 (터치 - 모바일 지원 + 핀치 줌 & 팬)
         inputCanvas.addEventListener('touchstart', handleTouchStart, { passive: false });
         inputCanvas.addEventListener('touchmove', handleTouchMove, { passive: false });
         inputCanvas.addEventListener('touchend', (e) => {
             if (e.touches.length < 2) {
                 initialPinchDist = null;
+                initialPinchCenter = null;
             }
+            stopDrawing(e);
+        });
+        inputCanvas.addEventListener('touchcancel', (e) => {
+            initialPinchDist = null;
+            initialPinchCenter = null;
             stopDrawing(e);
         });
 
@@ -3415,13 +3423,18 @@
             if (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating') return;
             e.preventDefault();
 
-            // 손가락 2개 터치 시 -> 핀치 줌 시작
+            // 손가락 2개 터치 시 -> 핀치 줌 & 상하좌우 팬(Pan) 이동 시작
             if (e.touches.length === 2) {
                 isDrawing = false;
                 const t1 = e.touches[0];
                 const t2 = e.touches[1];
                 initialPinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                initialPinchCenter = {
+                    x: (t1.clientX + t2.clientX) / 2,
+                    y: (t1.clientY + t2.clientY) / 2
+                };
                 initialPinchScale = zoomScale;
+                initialZoomPanPos = { x: zoomPanPos.x, y: zoomPanPos.y };
                 return;
             }
 
@@ -3436,20 +3449,34 @@
             if (mode !== 'drawing' && mode !== 'editing' && mode !== 'simulating') return;
             e.preventDefault();
 
-            // 손가락 2개 터치 이동 시 -> 핀치 줌 실행
-            if (e.touches.length === 2 && initialPinchDist) {
+            // 손가락 2개 터치 이동 시 -> 핀치 줌 & 상하좌우 팬(Pan) 이동 실행
+            if (e.touches.length === 2 && initialPinchDist && initialPinchCenter) {
                 const t1 = e.touches[0];
                 const t2 = e.touches[1];
                 const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-                const scaleFactor = currentDist / initialPinchDist;
-                const targetScale = initialPinchScale * scaleFactor;
-                const delta = targetScale - zoomScale;
-                
-                const centerPt = {
+                const currentCenter = {
                     x: (t1.clientX + t2.clientX) / 2,
                     y: (t1.clientY + t2.clientY) / 2
                 };
-                changeZoom(delta, centerPt);
+
+                const scaleFactor = (initialPinchDist > 0) ? (currentDist / initialPinchDist) : 1.0;
+                const newScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, initialPinchScale * scaleFactor));
+
+                const container = document.getElementById('canvas-container');
+                if (container) {
+                    const rect = container.getBoundingClientRect();
+                    const pivotX = initialPinchCenter.x - rect.left - rect.width / 2;
+                    const pivotY = initialPinchCenter.y - rect.top - rect.height / 2;
+
+                    const scaleRatio = newScale / initialPinchScale;
+                    const panDx = currentCenter.x - initialPinchCenter.x;
+                    const panDy = currentCenter.y - initialPinchCenter.y;
+
+                    zoomScale = newScale;
+                    zoomPanPos.x = initialZoomPanPos.x + panDx - (pivotX - initialZoomPanPos.x) * (scaleRatio - 1);
+                    zoomPanPos.y = initialZoomPanPos.y + panDy - (pivotY - initialZoomPanPos.y) * (scaleRatio - 1);
+                    updateZoomTransform();
+                }
                 return;
             }
 
