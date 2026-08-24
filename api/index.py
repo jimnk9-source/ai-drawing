@@ -14,6 +14,8 @@ app = FastAPI()
 class DrawingTask(BaseModel):
     gcode: str
     contours: Optional[list] = None
+    width: Optional[int] = 600
+    height: Optional[int] = 800
 
 class ContoursData(BaseModel):
     width: int
@@ -124,6 +126,8 @@ async def push_task(task: DrawingTask):
             "task_id": task_counter,
             "gcode": task.gcode,
             "contours": task.contours or [],
+            "width": task.width,
+            "height": task.height,
             "status": "pending"
         }
         tasks_db.append(new_task)
@@ -164,6 +168,8 @@ async def get_tasks_status():
         {
             "task_id": t["task_id"],
             "contours": t["contours"],
+            "width": t.get("width", 600),
+            "height": t.get("height", 800),
             "status": t["status"]
         } for t in tasks_db
     ]

@@ -2310,8 +2310,8 @@
                     id: Date.now(),
                     server_task_id: taskId,
                     contours: cachedTask ? cachedTask.contours : contours,
-                    width: simData ? simData.width : simCanvas.width,
-                    height: simData ? simData.height : simCanvas.height
+                    width: (cachedTask && cachedTask.width) ? cachedTask.width : (simData ? simData.width : (overridePaperOrientation === 'landscape' ? 800 : 600)),
+                    height: (cachedTask && cachedTask.height) ? cachedTask.height : (simData ? simData.height : (overridePaperOrientation === 'landscape' ? 600 : 800))
                 });
                 saveLocalSavedDrawings(list);
                 renderSavedList();
@@ -2465,9 +2465,33 @@
             ctx.rect(0, 0, displayW, displayH);
             ctx.clip();
 
-            // 원본 캔버스 크기
-            const canvasW = w || 800;
-            const canvasH = h || 600;
+            // contour 점들의 최대 X, Y좌표를 계산하여 캔버스 크기가 잘리지 않도록 안전 지대를 산출
+            let maxPtX = 0, maxPtY = 0;
+            contours.forEach(contour => {
+                if (!contour) return;
+                contour.forEach(pt => {
+                    if (pt.x > maxPtX) maxPtX = pt.x;
+                    if (pt.y > maxPtY) maxPtY = pt.y;
+                });
+            });
+
+            // 유효하지 않은 w, h (falsy 또는 화면 DOM 픽셀 크기 500 미만) 처리
+            let canvasW = (w && w >= 500) ? w : 0;
+            let canvasH = (h && h >= 500) ? h : 0;
+
+            if (!canvasW || !canvasH) {
+                if (maxPtX > 600 || (w && w > h)) {
+                    canvasW = 800;
+                    canvasH = 600;
+                } else {
+                    canvasW = 600;
+                    canvasH = 800;
+                }
+            }
+
+            // 그림 좌표가 기본 캔버스 규격을 초과하는 경우 자르지 않도록 바운딩 박스 자동 확장
+            if (maxPtX > canvasW) canvasW = Math.ceil(maxPtX + 10);
+            if (maxPtY > canvasH) canvasH = Math.ceil(maxPtY + 10);
 
             const padding = 2;
             const availW = displayW - padding * 2;
@@ -2623,9 +2647,15 @@
             setTimeout(() => {
                 const canvas = document.getElementById('preview-large-canvas');
                 if (canvas) {
-                    let w = task.width || 600;
-                    let h = task.height || 800;
+                    let maxPtX = 0, maxPtY = 0;
+                    if (task.contours) {
+                        task.contours.forEach(c => { if (c) c.forEach(p => { if (p.x > maxPtX) maxPtX = p.x; if (p.y > maxPtY) maxPtY = p.y; }); });
+                    }
+                    let w = (task.width && task.width >= 500) ? task.width : (maxPtX > 600 ? 800 : 600);
+                    let h = (task.height && task.height >= 500) ? task.height : (maxPtX > 600 ? 600 : 800);
                     if (h === 1200) h = 800; // 레거시 1200 높이 보정
+                    if (maxPtX > w) w = Math.ceil(maxPtX + 10);
+                    if (maxPtY > h) h = Math.ceil(maxPtY + 10);
                     
                     // 모달 안 캔버스 크기 지정 (최대 380x360 뷰포트 맞춤)
                     const containerBox = canvas.parentElement;
@@ -2903,8 +2933,8 @@
                 tasks.forEach(task => {
                     const canvas = document.querySelector(`.thumb-canvas-svr-${task.task_id}`);
                     if (canvas) {
-                        const w = task.width || (simData ? simData.width : simCanvas.width);
-                        const h = task.height || (simData ? simData.height : simCanvas.height);
+                        const w = (task.width && task.width >= 500) ? task.width : (simData && simData.width >= 500 ? simData.width : 600);
+                        const h = (task.height && task.height >= 500) ? task.height : (simData && simData.height >= 500 ? simData.height : 800);
                         drawThumb(canvas, task.contours, w, h);
                     }
                 });
@@ -3116,8 +3146,12 @@
                 return;
             }
 
-            let taskW = task.width || 600;
-            let taskH = task.height || 800;
+            let maxPtX = 0, maxPtY = 0;
+            if (task.contours) {
+                task.contours.forEach(c => { if (c) c.forEach(p => { if (p.x > maxPtX) maxPtX = p.x; if (p.y > maxPtY) maxPtY = p.y; }); });
+            }
+            let taskW = (task.width && task.width >= 500) ? task.width : (maxPtX > 600 ? 800 : 600);
+            let taskH = (task.height && task.height >= 500) ? task.height : (maxPtX > 600 ? 600 : 800);
             if (taskH === 1200) taskH = 800;
 
             // 종이 방향도 태스크 비율에 맞춰 동기화
